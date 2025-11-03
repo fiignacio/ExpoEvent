@@ -7,12 +7,10 @@ import { toast } from "sonner";
 import { Product } from "@/types/product";
 
 interface ExcelImportProps {
-  onImport: (products: Omit<Product, "id">[]) => void;
-  inventory: Product[];
-  onUpdate: (products: Product[]) => void;
+  onImport: (products: Omit<Product, "id">[]) => Promise<void>;
 }
 
-export function ExcelImport({ onImport, inventory, onUpdate }: ExcelImportProps) {
+export function ExcelImport({ onImport }: ExcelImportProps) {
   const [open, setOpen] = useState(false);
 
   const downloadTemplate = () => {
@@ -42,7 +40,7 @@ export function ExcelImport({ onImport, inventory, onUpdate }: ExcelImportProps)
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
@@ -71,37 +69,8 @@ export function ExcelImport({ onImport, inventory, onUpdate }: ExcelImportProps)
           return product;
         });
 
-        // Separar productos nuevos y actualizaciones
-        const newProducts: Product[] = [];
-        const updatedInventory = [...inventory];
-        let newCount = 0;
-        let updateCount = 0;
-
-        products.forEach(product => {
-          const existingIndex = updatedInventory.findIndex(item => item.sku === product.sku);
-          
-          if (existingIndex >= 0) {
-            // Actualizar producto existente
-            updatedInventory[existingIndex] = {
-              ...product,
-              id: updatedInventory[existingIndex].id
-            };
-            updateCount++;
-          } else {
-            // Nuevo producto
-            newProducts.push({
-              ...product,
-              id: `${Date.now()}-${Math.random()}`
-            });
-            newCount++;
-          }
-        });
-
-        // Agregar nuevos productos al inventario actualizado
-        const finalInventory = [...updatedInventory, ...newProducts];
-        onUpdate(finalInventory);
-        
-        toast.success(`${newCount} productos nuevos, ${updateCount} actualizados`);
+        await onImport(products);
+        toast.success(`${products.length} productos importados/actualizados`);
         setOpen(false);
       } catch (error) {
         toast.error("Error al procesar el archivo");

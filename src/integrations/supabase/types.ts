@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      products: {
+        Row: {
+          category: string
+          cost: number
+          created_at: string
+          id: string
+          name: string
+          price: number
+          promotion_discount_amount: number | null
+          promotion_discount_percentage: number | null
+          promotion_discounted_price: number | null
+          promotion_quantity: number | null
+          promotion_type: string | null
+          sku: string
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          cost: number
+          created_at?: string
+          id?: string
+          name: string
+          price: number
+          promotion_discount_amount?: number | null
+          promotion_discount_percentage?: number | null
+          promotion_discounted_price?: number | null
+          promotion_quantity?: number | null
+          promotion_type?: string | null
+          sku: string
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          cost?: number
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          promotion_discount_amount?: number | null
+          promotion_discount_percentage?: number | null
+          promotion_discounted_price?: number | null
+          promotion_quantity?: number | null
+          promotion_type?: string | null
+          sku?: string
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

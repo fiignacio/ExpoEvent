@@ -1,0 +1,167 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Product } from "@/types/product";
+import { toast } from "sonner";
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      const mappedProducts: Product[] = (data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        category: item.category,
+        stock: item.stock,
+        price: Number(item.price),
+        cost: Number(item.cost),
+        ...(item.promotion_type && {
+          promotion: {
+            type: item.promotion_type as "bulk" | "percentage" | "fixed",
+            ...(item.promotion_quantity && { quantity: item.promotion_quantity }),
+            ...(item.promotion_discounted_price && { discountedPrice: Number(item.promotion_discounted_price) }),
+            ...(item.promotion_discount_percentage && { discountPercentage: Number(item.promotion_discount_percentage) }),
+            ...(item.promotion_discount_amount && { discountAmount: Number(item.promotion_discount_amount) }),
+          }
+        })
+      }));
+
+      setProducts(mappedProducts);
+    } catch (error: any) {
+      toast.error("Error al cargar productos");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addProduct = async (product: Omit<Product, "id">) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert([{
+          name: product.name,
+          sku: product.sku,
+          category: product.category,
+          stock: product.stock,
+          price: product.price,
+          cost: product.cost,
+          promotion_type: product.promotion?.type,
+          promotion_quantity: product.promotion?.quantity,
+          promotion_discounted_price: product.promotion?.discountedPrice,
+          promotion_discount_percentage: product.promotion?.discountPercentage,
+          promotion_discount_amount: product.promotion?.discountAmount,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Producto agregado");
+      await fetchProducts();
+      return data;
+    } catch (error: any) {
+      toast.error(error.message || "Error al agregar producto");
+      throw error;
+    }
+  };
+
+  const updateProduct = async (id: string, product: Omit<Product, "id">) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name: product.name,
+          sku: product.sku,
+          category: product.category,
+          stock: product.stock,
+          price: product.price,
+          cost: product.cost,
+          promotion_type: product.promotion?.type || null,
+          promotion_quantity: product.promotion?.quantity || null,
+          promotion_discounted_price: product.promotion?.discountedPrice || null,
+          promotion_discount_percentage: product.promotion?.discountPercentage || null,
+          promotion_discount_amount: product.promotion?.discountAmount || null,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success("Producto actualizado");
+      await fetchProducts();
+    } catch (error: any) {
+      toast.error(error.message || "Error al actualizar producto");
+      throw error;
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success("Producto eliminado");
+      await fetchProducts();
+    } catch (error: any) {
+      toast.error(error.message || "Error al eliminar producto");
+      throw error;
+    }
+  };
+
+  const bulkUpsert = async (products: Omit<Product, "id">[]) => {
+    try {
+      const productsToUpsert = products.map(p => ({
+        sku: p.sku,
+        name: p.name,
+        category: p.category,
+        stock: p.stock,
+        price: p.price,
+        cost: p.cost,
+        promotion_type: p.promotion?.type || null,
+        promotion_quantity: p.promotion?.quantity || null,
+        promotion_discounted_price: p.promotion?.discountedPrice || null,
+        promotion_discount_percentage: p.promotion?.discountPercentage || null,
+        promotion_discount_amount: p.promotion?.discountAmount || null,
+      }));
+
+      const { error } = await supabase
+        .from('products')
+        .upsert(productsToUpsert, { onConflict: 'sku' });
+
+      if (error) throw error;
+
+      await fetchProducts();
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || "Error al importar productos");
+      throw error;
+    }
+  };
+
+  return {
+    products,
+    loading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    bulkUpsert,
+    refresh: fetchProducts,
+  };
+}

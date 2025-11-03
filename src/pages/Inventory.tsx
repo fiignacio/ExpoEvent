@@ -16,65 +16,42 @@ import { Product } from "@/types/product";
 import { ExcelImport } from "@/components/ExcelImport";
 import { ProductDialog } from "@/components/ProductDialog";
 import { getPromotionLabel } from "@/utils/promotions";
-import { toast } from "sonner";
-
-const initialInventory: Product[] = [
-  { 
-    id: "1", 
-    name: "Café Americano", 
-    sku: "BEB-001", 
-    category: "Bebidas", 
-    stock: 150, 
-    price: 4.00, 
-    cost: 2.00,
-    promotion: {
-      type: "bulk",
-      quantity: 3,
-      discountedPrice: 10.00
-    }
-  },
-  { id: "2", name: "Croissant", sku: "PAN-001", category: "Panadería", stock: 45, price: 4.50, cost: 1.80 },
-  { id: "3", name: "Capuccino", sku: "BEB-002", category: "Bebidas", stock: 120, price: 6.00, cost: 3.00 },
-  { id: "4", name: "Jugo Naranja", sku: "BEB-003", category: "Bebidas", stock: 8, price: 4.00, cost: 1.50 },
-  { id: "5", name: "Sándwich", sku: "COM-001", category: "Comida", stock: 30, price: 8.50, cost: 4.00 },
-  { id: "6", name: "Ensalada", sku: "COM-002", category: "Comida", stock: 25, price: 7.00, cost: 3.50 },
-];
+import { useProducts } from "@/hooks/useProducts";
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [inventory, setInventory] = useState<Product[]>(initialInventory);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert } = useProducts();
 
-  const filteredInventory = inventory.filter(item =>
+  const filteredInventory = products.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleImport = (products: Omit<Product, "id">[]) => {
-    const newProducts = products.map(p => ({
-      ...p,
-      id: `${Date.now()}-${Math.random()}`
-    }));
-    setInventory([...inventory, ...newProducts]);
+  const handleAddProduct = async (product: Omit<Product, "id">) => {
+    await addProduct(product);
   };
 
-  const handleAddProduct = (product: Omit<Product, "id">) => {
-    const newProduct = {
-      ...product,
-      id: `${Date.now()}`
-    };
-    setInventory([...inventory, newProduct]);
-  };
-
-  const handleUpdateProduct = (id: string, product: Omit<Product, "id">) => {
-    setInventory(inventory.map(item => item.id === id ? { ...product, id } : item));
+  const handleUpdateProduct = async (id: string, product: Omit<Product, "id">) => {
+    await updateProduct(id, product);
     setEditingProduct(undefined);
   };
 
-  const handleDelete = (id: string) => {
-    setInventory(inventory.filter(item => item.id !== id));
-    toast.success("Producto eliminado");
+  const handleDelete = async (id: string) => {
+    await deleteProduct(id);
   };
+
+  const handleBulkImport = async (importedProducts: Omit<Product, "id">[]) => {
+    await bulkUpsert(importedProducts);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">Cargando inventario...</div>
+      </div>
+    );
+  }
 
   const getStockBadge = (stock: number) => {
     if (stock < 10) {
@@ -94,7 +71,7 @@ export default function Inventory() {
           <p className="text-muted-foreground mt-1">Gestiona tu catálogo de productos</p>
         </div>
         <div className="flex gap-2">
-          <ExcelImport onImport={handleImport} inventory={inventory} onUpdate={setInventory} />
+          <ExcelImport onImport={handleBulkImport} />
           <ProductDialog 
             onSave={handleAddProduct}
             product={editingProduct}
@@ -109,8 +86,8 @@ export default function Inventory() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Productos</p>
-                <p className="text-2xl font-bold mt-1">{inventory.length}</p>
+          <p className="text-sm text-muted-foreground">Total Productos</p>
+                <p className="text-2xl font-bold mt-1">{products.length}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
                 <Package className="w-6 h-6 text-white" />
@@ -123,7 +100,7 @@ export default function Inventory() {
             <div>
               <p className="text-sm text-muted-foreground">Valor Total</p>
               <p className="text-2xl font-bold mt-1 text-success">
-                ${inventory.reduce((sum, item) => sum + (item.stock * item.cost), 0).toFixed(2)}
+                ${products.reduce((sum, item) => sum + (item.stock * item.cost), 0).toFixed(2)}
               </p>
             </div>
           </CardContent>
@@ -133,7 +110,7 @@ export default function Inventory() {
             <div>
               <p className="text-sm text-muted-foreground">Stock Bajo</p>
               <p className="text-2xl font-bold mt-1 text-destructive">
-                {inventory.filter(item => item.stock < 10).length}
+                {products.filter(item => item.stock < 10).length}
               </p>
             </div>
           </CardContent>
@@ -143,7 +120,7 @@ export default function Inventory() {
             <div>
               <p className="text-sm text-muted-foreground">Categorías</p>
               <p className="text-2xl font-bold mt-1">
-                {new Set(inventory.map(item => item.category)).size}
+                {new Set(products.map(item => item.category)).size}
               </p>
             </div>
           </CardContent>
