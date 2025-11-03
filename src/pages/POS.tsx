@@ -1,24 +1,33 @@
 import { useState } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Product, CartItem } from "@/types/product";
+import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-const mockProducts = [
-  { id: "1", name: "Café Americano", price: 5.00, category: "Bebidas" },
-  { id: "2", name: "Croissant", price: 4.50, category: "Panadería" },
-  { id: "3", name: "Capuccino", price: 6.00, category: "Bebidas" },
-  { id: "4", name: "Jugo Naranja", price: 4.00, category: "Bebidas" },
-  { id: "5", name: "Sándwich", price: 8.50, category: "Comida" },
-  { id: "6", name: "Ensalada", price: 7.00, category: "Comida" },
+const mockProducts: Product[] = [
+  { 
+    id: "1", 
+    name: "Café Americano", 
+    sku: "BEB-001",
+    price: 4.00, 
+    cost: 2.00,
+    stock: 150,
+    category: "Bebidas",
+    promotion: {
+      type: "bulk",
+      quantity: 3,
+      discountedPrice: 10.00
+    }
+  },
+  { id: "2", name: "Croissant", sku: "PAN-001", price: 4.50, cost: 1.80, stock: 45, category: "Panadería" },
+  { id: "3", name: "Capuccino", sku: "BEB-002", price: 6.00, cost: 3.00, stock: 120, category: "Bebidas" },
+  { id: "4", name: "Jugo Naranja", sku: "BEB-003", price: 4.00, cost: 1.50, stock: 8, category: "Bebidas" },
+  { id: "5", name: "Sándwich", sku: "COM-001", price: 8.50, cost: 4.00, stock: 30, category: "Comida" },
+  { id: "6", name: "Ensalada", sku: "COM-002", price: 7.00, cost: 3.50, stock: 25, category: "Comida" },
 ];
 
 export default function POS() {
@@ -29,28 +38,61 @@ export default function POS() {
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const addToCart = (product: typeof mockProducts[0]) => {
+  const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
-      setCart(cart.map(item =>
+      const newCart = cart.map(item =>
         item.id === product.id
           ? { ...item, quantity: item.quantity + 1 }
           : item
-      ));
+      );
+      setCart(newCart);
+      checkPromotion(newCart, product.id);
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      const newItem: CartItem = { 
+        ...product, 
+        quantity: 1,
+        originalPrice: product.price,
+        appliedDiscount: 0
+      };
+      const newCart = [...cart, newItem];
+      setCart(newCart);
+      checkPromotion(newCart, product.id);
     }
     toast.success(`${product.name} agregado al carrito`);
   };
 
+  const checkPromotion = (currentCart: CartItem[], productId: string) => {
+    const item = currentCart.find(i => i.id === productId);
+    if (!item || !item.promotion) return;
+
+    const discount = calculatePromotionDiscount(item);
+    
+    if (discount > 0 && item.appliedDiscount !== discount) {
+      setCart(currentCart.map(i => 
+        i.id === productId 
+          ? { ...i, appliedDiscount: discount }
+          : i
+      ));
+      
+      const promoLabel = getPromotionLabel(item);
+      if (item.promotion.type === "bulk" && item.quantity >= (item.promotion.quantity || 0)) {
+        toast.success(`¡Promoción aplicada! ${promoLabel}`);
+      }
+    }
+  };
+
   const updateQuantity = (id: string, delta: number) => {
-    setCart(cart.map(item => {
+    const newCart = cart.map(item => {
       if (item.id === id) {
         const newQuantity = item.quantity + delta;
         return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
       }
       return item;
-    }).filter(item => item.quantity > 0));
+    }).filter(item => item.quantity > 0);
+    
+    setCart(newCart);
+    checkPromotion(newCart, id);
   };
 
   const removeItem = (id: string) => {
@@ -59,8 +101,10 @@ export default function POS() {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.16;
-  const total = subtotal + tax;
+  const totalDiscounts = cart.reduce((sum, item) => sum + (item.appliedDiscount || 0), 0);
+  const subtotalAfterDiscounts = subtotal - totalDiscounts;
+  const tax = subtotalAfterDiscounts * 0.16;
+  const total = subtotalAfterDiscounts + tax;
 
   const handleCheckout = () => {
     if (cart.length === 0) {
@@ -92,12 +136,18 @@ export default function POS() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {filteredProducts.map(product => (
-            <Card
+              <Card
               key={product.id}
-              className="cursor-pointer hover:shadow-lg transition-all hover:scale-105"
+              className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 relative"
               onClick={() => addToCart(product)}
             >
               <CardContent className="p-6">
+                {product.promotion && (
+                  <Badge className="absolute top-2 right-2 bg-warning text-warning-foreground">
+                    <Tag className="w-3 h-3 mr-1" />
+                    {getPromotionLabel(product)}
+                  </Badge>
+                )}
                 <div className="aspect-square bg-gradient-subtle rounded-lg mb-4 flex items-center justify-center">
                   <Package className="w-12 h-12 text-muted-foreground" />
                 </div>
@@ -126,11 +176,33 @@ export default function POS() {
                   </p>
                 </div>
               ) : (
-                cart.map(item => (
+                cart.map(item => {
+                  const itemSubtotal = item.price * item.quantity;
+                  const itemDiscount = item.appliedDiscount || 0;
+                  const itemTotal = itemSubtotal - itemDiscount;
+                  
+                  return (
                   <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-accent">
                     <div className="flex-1">
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">${item.price.toFixed(2)} c/u</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{item.name}</p>
+                        {item.promotion && (
+                          <Badge variant="outline" className="text-xs">
+                            {getPromotionLabel(item)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">${item.price.toFixed(2)} c/u</p>
+                        {itemDiscount > 0 && (
+                          <p className="text-xs text-success font-semibold">
+                            -${itemDiscount.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold">
+                        Total: ${itemTotal.toFixed(2)}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -160,7 +232,8 @@ export default function POS() {
                       </Button>
                     </div>
                   </div>
-                ))
+                );
+                })
               )}
             </div>
 
@@ -169,6 +242,12 @@ export default function POS() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">${subtotal.toFixed(2)}</span>
               </div>
+              {totalDiscounts > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-success">Descuentos</span>
+                  <span className="font-medium text-success">-${totalDiscounts.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">IVA (16%)</span>
                 <span className="font-medium">${tax.toFixed(2)}</span>

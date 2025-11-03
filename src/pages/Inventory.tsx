@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import { Search, Edit, Trash2, Package, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,9 +12,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Product } from "@/types/product";
+import { ExcelImport } from "@/components/ExcelImport";
+import { ProductDialog } from "@/components/ProductDialog";
+import { getPromotionLabel } from "@/utils/promotions";
+import { toast } from "sonner";
 
-const mockInventory = [
-  { id: "1", name: "Café Americano", sku: "BEB-001", category: "Bebidas", stock: 150, price: 5.00, cost: 2.50 },
+const initialInventory: Product[] = [
+  { 
+    id: "1", 
+    name: "Café Americano", 
+    sku: "BEB-001", 
+    category: "Bebidas", 
+    stock: 150, 
+    price: 4.00, 
+    cost: 2.00,
+    promotion: {
+      type: "bulk",
+      quantity: 3,
+      discountedPrice: 10.00
+    }
+  },
   { id: "2", name: "Croissant", sku: "PAN-001", category: "Panadería", stock: 45, price: 4.50, cost: 1.80 },
   { id: "3", name: "Capuccino", sku: "BEB-002", category: "Bebidas", stock: 120, price: 6.00, cost: 3.00 },
   { id: "4", name: "Jugo Naranja", sku: "BEB-003", category: "Bebidas", stock: 8, price: 4.00, cost: 1.50 },
@@ -24,11 +42,33 @@ const mockInventory = [
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [inventory, setInventory] = useState<Product[]>(initialInventory);
 
-  const filteredInventory = mockInventory.filter(item =>
+  const filteredInventory = inventory.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleImport = (products: Omit<Product, "id">[]) => {
+    const newProducts = products.map(p => ({
+      ...p,
+      id: `${Date.now()}-${Math.random()}`
+    }));
+    setInventory([...inventory, ...newProducts]);
+  };
+
+  const handleAddProduct = (product: Omit<Product, "id">) => {
+    const newProduct = {
+      ...product,
+      id: `${Date.now()}`
+    };
+    setInventory([...inventory, newProduct]);
+  };
+
+  const handleDelete = (id: string) => {
+    setInventory(inventory.filter(item => item.id !== id));
+    toast.success("Producto eliminado");
+  };
 
   const getStockBadge = (stock: number) => {
     if (stock < 10) {
@@ -47,10 +87,10 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold">Inventario</h1>
           <p className="text-muted-foreground mt-1">Gestiona tu catálogo de productos</p>
         </div>
-        <Button className="bg-gradient-primary">
-          <Plus className="w-5 h-5 mr-2" />
-          Nuevo Producto
-        </Button>
+        <div className="flex gap-2">
+          <ExcelImport onImport={handleImport} />
+          <ProductDialog onSave={handleAddProduct} />
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
@@ -59,7 +99,7 @@ export default function Inventory() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Productos</p>
-                <p className="text-2xl font-bold mt-1">{mockInventory.length}</p>
+                <p className="text-2xl font-bold mt-1">{inventory.length}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
                 <Package className="w-6 h-6 text-white" />
@@ -72,7 +112,7 @@ export default function Inventory() {
             <div>
               <p className="text-sm text-muted-foreground">Valor Total</p>
               <p className="text-2xl font-bold mt-1 text-success">
-                ${mockInventory.reduce((sum, item) => sum + (item.stock * item.cost), 0).toFixed(2)}
+                ${inventory.reduce((sum, item) => sum + (item.stock * item.cost), 0).toFixed(2)}
               </p>
             </div>
           </CardContent>
@@ -82,7 +122,7 @@ export default function Inventory() {
             <div>
               <p className="text-sm text-muted-foreground">Stock Bajo</p>
               <p className="text-2xl font-bold mt-1 text-destructive">
-                {mockInventory.filter(item => item.stock < 10).length}
+                {inventory.filter(item => item.stock < 10).length}
               </p>
             </div>
           </CardContent>
@@ -92,7 +132,7 @@ export default function Inventory() {
             <div>
               <p className="text-sm text-muted-foreground">Categorías</p>
               <p className="text-2xl font-bold mt-1">
-                {new Set(mockInventory.map(item => item.category)).size}
+                {new Set(inventory.map(item => item.category)).size}
               </p>
             </div>
           </CardContent>
@@ -124,6 +164,7 @@ export default function Inventory() {
                 <TableHead>Stock</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Precio</TableHead>
+                <TableHead>Promoción</TableHead>
                 <TableHead>Margen</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -144,13 +185,28 @@ export default function Inventory() {
                     </TableCell>
                     <TableCell>${item.cost.toFixed(2)}</TableCell>
                     <TableCell className="font-semibold">${item.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {item.promotion ? (
+                        <Badge variant="outline" className="gap-1">
+                          <Tag className="w-3 h-3" />
+                          {getPromotionLabel(item)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-success">{margin}%</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive"
+                          onClick={() => handleDelete(item.id)}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
