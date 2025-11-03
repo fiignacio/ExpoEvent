@@ -65,6 +65,51 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          business_address: string | null
+          business_email: string | null
+          business_name: string
+          business_phone: string | null
+          created_at: string
+          currency: string
+          currency_symbol: string
+          id: string
+          low_stock_threshold: number
+          receipt_footer: string | null
+          tax_rate: number
+          updated_at: string
+        }
+        Insert: {
+          business_address?: string | null
+          business_email?: string | null
+          business_name?: string
+          business_phone?: string | null
+          created_at?: string
+          currency?: string
+          currency_symbol?: string
+          id?: string
+          low_stock_threshold?: number
+          receipt_footer?: string | null
+          tax_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          business_address?: string | null
+          business_email?: string | null
+          business_name?: string
+          business_phone?: string | null
+          created_at?: string
+          currency?: string
+          currency_symbol?: string
+          id?: string
+          low_stock_threshold?: number
+          receipt_footer?: string | null
+          tax_rate?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
