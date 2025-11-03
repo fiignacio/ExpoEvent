@@ -8,9 +8,11 @@ import { Product } from "@/types/product";
 
 interface ExcelImportProps {
   onImport: (products: Omit<Product, "id">[]) => void;
+  inventory: Product[];
+  onUpdate: (products: Product[]) => void;
 }
 
-export function ExcelImport({ onImport }: ExcelImportProps) {
+export function ExcelImport({ onImport, inventory, onUpdate }: ExcelImportProps) {
   const [open, setOpen] = useState(false);
 
   const downloadTemplate = () => {
@@ -69,8 +71,37 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
           return product;
         });
 
-        onImport(products);
-        toast.success(`${products.length} productos importados`);
+        // Separar productos nuevos y actualizaciones
+        const newProducts: Product[] = [];
+        const updatedInventory = [...inventory];
+        let newCount = 0;
+        let updateCount = 0;
+
+        products.forEach(product => {
+          const existingIndex = updatedInventory.findIndex(item => item.sku === product.sku);
+          
+          if (existingIndex >= 0) {
+            // Actualizar producto existente
+            updatedInventory[existingIndex] = {
+              ...product,
+              id: updatedInventory[existingIndex].id
+            };
+            updateCount++;
+          } else {
+            // Nuevo producto
+            newProducts.push({
+              ...product,
+              id: `${Date.now()}-${Math.random()}`
+            });
+            newCount++;
+          }
+        });
+
+        // Agregar nuevos productos al inventario actualizado
+        const finalInventory = [...updatedInventory, ...newProducts];
+        onUpdate(finalInventory);
+        
+        toast.success(`${newCount} productos nuevos, ${updateCount} actualizados`);
         setOpen(false);
       } catch (error) {
         toast.error("Error al procesar el archivo");
@@ -122,6 +153,9 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             <p>• promo_tipo (bulk/percentage/fixed)</p>
             <p>• promo_cantidad (ej: 3 para "3 x 10000")</p>
             <p>• promo_precio (precio total para la cantidad)</p>
+            <p className="font-semibold mt-2 text-primary">Actualización:</p>
+            <p>• Si el SKU existe, se actualizará el producto</p>
+            <p>• Si el SKU no existe, se creará un producto nuevo</p>
           </div>
         </div>
       </DialogContent>

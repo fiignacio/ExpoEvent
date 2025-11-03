@@ -43,6 +43,7 @@ const initialInventory: Product[] = [
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [inventory, setInventory] = useState<Product[]>(initialInventory);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
 
   const filteredInventory = inventory.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,6 +64,11 @@ export default function Inventory() {
       id: `${Date.now()}`
     };
     setInventory([...inventory, newProduct]);
+  };
+
+  const handleUpdateProduct = (id: string, product: Omit<Product, "id">) => {
+    setInventory(inventory.map(item => item.id === id ? { ...product, id } : item));
+    setEditingProduct(undefined);
   };
 
   const handleDelete = (id: string) => {
@@ -88,8 +94,13 @@ export default function Inventory() {
           <p className="text-muted-foreground mt-1">Gestiona tu catálogo de productos</p>
         </div>
         <div className="flex gap-2">
-          <ExcelImport onImport={handleImport} />
-          <ProductDialog onSave={handleAddProduct} />
+          <ExcelImport onImport={handleImport} inventory={inventory} onUpdate={setInventory} />
+          <ProductDialog 
+            onSave={handleAddProduct}
+            product={editingProduct}
+            onUpdate={handleUpdateProduct}
+            onClose={() => setEditingProduct(undefined)}
+          />
         </div>
       </div>
 
@@ -198,7 +209,11 @@ export default function Inventory() {
                     <TableCell className="text-success">{margin}%</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => setEditingProduct(item)}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button 

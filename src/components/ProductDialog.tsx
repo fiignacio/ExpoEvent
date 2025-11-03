@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,21 +11,43 @@ import { toast } from "sonner";
 interface ProductDialogProps {
   onSave: (product: Omit<Product, "id">) => void;
   trigger?: React.ReactNode;
+  product?: Product;
+  onUpdate?: (id: string, product: Omit<Product, "id">) => void;
+  onClose?: () => void;
 }
 
-export function ProductDialog({ onSave, trigger }: ProductDialogProps) {
+export function ProductDialog({ onSave, trigger, product: editingProduct, onUpdate, onClose }: ProductDialogProps) {
   const [open, setOpen] = useState(false);
+  const isEditing = !!editingProduct;
+  
   const [formData, setFormData] = useState({
-    name: "",
-    sku: "",
-    category: "",
-    stock: "",
-    price: "",
-    cost: "",
-    promoType: "none",
-    promoQuantity: "",
-    promoPrice: "",
+    name: editingProduct?.name || "",
+    sku: editingProduct?.sku || "",
+    category: editingProduct?.category || "",
+    stock: editingProduct?.stock.toString() || "",
+    price: editingProduct?.price.toString() || "",
+    cost: editingProduct?.cost.toString() || "",
+    promoType: editingProduct?.promotion ? "bulk" : "none",
+    promoQuantity: editingProduct?.promotion?.quantity?.toString() || "",
+    promoPrice: editingProduct?.promotion?.discountedPrice?.toString() || "",
   });
+
+  useEffect(() => {
+    if (editingProduct) {
+      setFormData({
+        name: editingProduct.name,
+        sku: editingProduct.sku,
+        category: editingProduct.category,
+        stock: editingProduct.stock.toString(),
+        price: editingProduct.price.toString(),
+        cost: editingProduct.cost.toString(),
+        promoType: editingProduct.promotion ? "bulk" : "none",
+        promoQuantity: editingProduct.promotion?.quantity?.toString() || "",
+        promoPrice: editingProduct.promotion?.discountedPrice?.toString() || "",
+      });
+      setOpen(true);
+    }
+  }, [editingProduct]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +74,13 @@ export function ProductDialog({ onSave, trigger }: ProductDialogProps) {
       };
     }
 
-    onSave(product);
-    toast.success("Producto guardado");
+    if (isEditing && onUpdate && editingProduct) {
+      onUpdate(editingProduct.id, product);
+      toast.success("Producto actualizado");
+    } else {
+      onSave(product);
+      toast.success("Producto creado");
+    }
     setOpen(false);
     setFormData({
       name: "",
@@ -69,7 +96,23 @@ export function ProductDialog({ onSave, trigger }: ProductDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen) {
+        setFormData({
+          name: "",
+          sku: "",
+          category: "",
+          stock: "",
+          price: "",
+          cost: "",
+          promoType: "none",
+          promoQuantity: "",
+          promoPrice: "",
+        });
+        onClose?.();
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-gradient-primary">
@@ -80,7 +123,7 @@ export function ProductDialog({ onSave, trigger }: ProductDialogProps) {
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nuevo Producto</DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Producto" : "Nuevo Producto"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
