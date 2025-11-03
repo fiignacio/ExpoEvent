@@ -27,9 +27,11 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
     stock: editingProduct?.stock.toString() || "",
     price: editingProduct?.price.toString() || "",
     cost: editingProduct?.cost.toString() || "",
-    promoType: editingProduct?.promotion ? "bulk" : "none",
+    promoType: editingProduct?.promotion?.type || "none",
     promoQuantity: editingProduct?.promotion?.quantity?.toString() || "",
     promoPrice: editingProduct?.promotion?.discountedPrice?.toString() || "",
+    promoPercentage: editingProduct?.promotion?.discountPercentage?.toString() || "",
+    promoAmount: editingProduct?.promotion?.discountAmount?.toString() || "",
   });
 
   useEffect(() => {
@@ -41,9 +43,11 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
         stock: editingProduct.stock.toString(),
         price: editingProduct.price.toString(),
         cost: editingProduct.cost.toString(),
-        promoType: editingProduct.promotion ? "bulk" : "none",
+        promoType: editingProduct.promotion?.type || "none",
         promoQuantity: editingProduct.promotion?.quantity?.toString() || "",
         promoPrice: editingProduct.promotion?.discountedPrice?.toString() || "",
+        promoPercentage: editingProduct.promotion?.discountPercentage?.toString() || "",
+        promoAmount: editingProduct.promotion?.discountAmount?.toString() || "",
       });
       setOpen(true);
     }
@@ -66,12 +70,24 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
       cost: Number(formData.cost) || 0,
     };
 
-    if (formData.promoType !== "none" && formData.promoQuantity && formData.promoPrice) {
-      product.promotion = {
-        type: "bulk",
-        quantity: Number(formData.promoQuantity),
-        discountedPrice: Number(formData.promoPrice),
-      };
+    if (formData.promoType !== "none") {
+      if (formData.promoType === "bulk" && formData.promoQuantity && formData.promoPrice) {
+        product.promotion = {
+          type: "bulk",
+          quantity: Number(formData.promoQuantity),
+          discountedPrice: Number(formData.promoPrice),
+        };
+      } else if (formData.promoType === "percentage" && formData.promoPercentage) {
+        product.promotion = {
+          type: "percentage",
+          discountPercentage: Number(formData.promoPercentage),
+        };
+      } else if (formData.promoType === "fixed" && formData.promoAmount) {
+        product.promotion = {
+          type: "fixed",
+          discountAmount: Number(formData.promoAmount),
+        };
+      }
     }
 
     if (isEditing && onUpdate && editingProduct) {
@@ -92,6 +108,8 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
       promoType: "none",
       promoQuantity: "",
       promoPrice: "",
+      promoPercentage: "",
+      promoAmount: "",
     });
   };
 
@@ -109,6 +127,8 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
           promoType: "none",
           promoQuantity: "",
           promoPrice: "",
+          promoPercentage: "",
+          promoAmount: "",
         });
         onClose?.();
       }
@@ -204,7 +224,9 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin promoción</SelectItem>
-                  <SelectItem value="bulk">Por Cantidad (ej: 3 x $10,000)</SelectItem>
+                  <SelectItem value="bulk">Por Cantidad (ej: 3 x $10)</SelectItem>
+                  <SelectItem value="percentage">Descuento % (ej: 10% OFF)</SelectItem>
+                  <SelectItem value="fixed">Descuento Fijo (ej: $5 OFF)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -222,16 +244,47 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="promoPrice">Precio Promoción</Label>
+                  <Label htmlFor="promoPrice">Precio Total Promoción</Label>
                   <Input
                     id="promoPrice"
                     type="number"
                     step="0.01"
                     value={formData.promoPrice}
                     onChange={(e) => setFormData({ ...formData, promoPrice: e.target.value })}
-                    placeholder="10000"
+                    placeholder="10.00"
                   />
                 </div>
+              </div>
+            )}
+
+            {formData.promoType === "percentage" && (
+              <div className="space-y-2">
+                <Label htmlFor="promoPercentage">Porcentaje de Descuento (%)</Label>
+                <Input
+                  id="promoPercentage"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.promoPercentage}
+                  onChange={(e) => setFormData({ ...formData, promoPercentage: e.target.value })}
+                  placeholder="10"
+                />
+              </div>
+            )}
+
+            {formData.promoType === "fixed" && (
+              <div className="space-y-2">
+                <Label htmlFor="promoAmount">Monto de Descuento ($)</Label>
+                <Input
+                  id="promoAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.promoAmount}
+                  onChange={(e) => setFormData({ ...formData, promoAmount: e.target.value })}
+                  placeholder="5.00"
+                />
               </div>
             )}
           </div>

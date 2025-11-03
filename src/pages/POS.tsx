@@ -7,36 +7,25 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
-
-const mockProducts: Product[] = [
-  { 
-    id: "1", 
-    name: "Café Americano", 
-    sku: "BEB-001",
-    price: 4.00, 
-    cost: 2.00,
-    stock: 150,
-    category: "Bebidas",
-    promotion: {
-      type: "bulk",
-      quantity: 3,
-      discountedPrice: 10.00
-    }
-  },
-  { id: "2", name: "Croissant", sku: "PAN-001", price: 4.50, cost: 1.80, stock: 45, category: "Panadería" },
-  { id: "3", name: "Capuccino", sku: "BEB-002", price: 6.00, cost: 3.00, stock: 120, category: "Bebidas" },
-  { id: "4", name: "Jugo Naranja", sku: "BEB-003", price: 4.00, cost: 1.50, stock: 8, category: "Bebidas" },
-  { id: "5", name: "Sándwich", sku: "COM-001", price: 8.50, cost: 4.00, stock: 30, category: "Comida" },
-  { id: "6", name: "Ensalada", sku: "COM-002", price: 7.00, cost: 3.50, stock: 25, category: "Comida" },
-];
+import { useProducts } from "@/hooks/useProducts";
 
 export default function POS() {
+  const { products, loading } = useProducts();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredProducts = mockProducts.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">Cargando productos...</div>
+      </div>
+    );
+  }
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
