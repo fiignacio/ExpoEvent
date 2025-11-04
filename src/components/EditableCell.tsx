@@ -33,7 +33,7 @@ export function EditableCell({ value, onSave, type = "text" }: EditableCellProps
         onClick={() => setIsEditing(true)}
         className="cursor-pointer hover:bg-accent px-2 py-1 rounded min-h-[2rem] flex items-center"
       >
-        {type === "number" && typeof value === "number" ? value.toFixed(2) : value}
+        {type === "number" && typeof value === "number" ? value.toLocaleString('es-CL') : value}
       </div>
     );
   }

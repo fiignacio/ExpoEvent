@@ -3,6 +3,7 @@ import { Search, Edit, Trash2, Package, Tag, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -23,7 +24,8 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [editMode, setEditMode] = useState(false);
-  const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert } = useProducts();
+  const [pendingChanges, setPendingChanges] = useState<Map<string, Partial<Omit<Product, "id">>>>(new Map());
+  const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert, bulkUpdate } = useProducts();
 
   const filteredInventory = products.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -47,14 +49,42 @@ export default function Inventory() {
     await bulkUpsert(importedProducts);
   };
 
-  const handleCellUpdate = async (productId: string, field: keyof Product, value: any) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    
-    await updateProduct(productId, {
-      ...product,
-      [field]: value
+  const handleCellUpdate = (productId: string, field: keyof Product, value: any) => {
+    setPendingChanges(prev => {
+      const newChanges = new Map(prev);
+      const existing = newChanges.get(productId) || {};
+      newChanges.set(productId, { ...existing, [field]: value });
+      return newChanges;
     });
+  };
+
+  const handleSavePendingChanges = async () => {
+    if (pendingChanges.size === 0) {
+      toast.error("No hay cambios pendientes");
+      return;
+    }
+
+    const updates = Array.from(pendingChanges.entries()).map(([id, data]) => ({
+      id,
+      data
+    }));
+
+    await bulkUpdate(updates);
+    setPendingChanges(new Map());
+    setEditMode(false);
+  };
+
+  const handleCancelChanges = () => {
+    setPendingChanges(new Map());
+    setEditMode(false);
+  };
+
+  const getDisplayValue = (product: Product, field: keyof Product) => {
+    const pendingChange = pendingChanges.get(product.id);
+    if (pendingChange && field in pendingChange) {
+      return pendingChange[field as keyof typeof pendingChange];
+    }
+    return product[field];
   };
 
   if (loading) {
@@ -83,21 +113,30 @@ export default function Inventory() {
           <p className="text-muted-foreground mt-1">Gestiona tu catálogo de productos</p>
         </div>
         <div className="flex gap-2">
+          {editMode && (
+            <>
+              <Button 
+                variant="default"
+                onClick={handleSavePendingChanges}
+                disabled={pendingChanges.size === 0}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Guardar Cambios ({pendingChanges.size})
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleCancelChanges}
+              >
+                Cancelar
+              </Button>
+            </>
+          )}
           <Button 
-            variant={editMode ? "default" : "outline"}
+            variant={editMode ? "secondary" : "outline"}
             onClick={() => setEditMode(!editMode)}
           >
-            {editMode ? (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Modo Edición Activo
-              </>
-            ) : (
-              <>
-                <Edit className="w-4 h-4 mr-2" />
-                Edición Rápida
-              </>
-            )}
+            <Edit className="w-4 h-4 mr-2" />
+            {editMode ? "Modo Edición" : "Edición Rápida"}
           </Button>
           <ExcelImport onImport={handleBulkImport} />
           <ProductDialog 
@@ -189,11 +228,11 @@ export default function Inventory() {
               {filteredInventory.map((item) => {
                 const margin = ((item.price - item.cost) / item.price * 100).toFixed(1);
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className={pendingChanges.has(item.id) ? "bg-accent/50" : ""}>
                     <TableCell className="font-medium">
                       {editMode ? (
                         <EditableCell 
-                          value={item.name} 
+                          value={getDisplayValue(item, 'name') as string} 
                           onSave={(value) => handleCellUpdate(item.id, 'name', value)}
                         />
                       ) : (
@@ -204,7 +243,7 @@ export default function Inventory() {
                     <TableCell>
                       {editMode ? (
                         <EditableCell 
-                          value={item.category} 
+                          value={getDisplayValue(item, 'category') as string} 
                           onSave={(value) => handleCellUpdate(item.id, 'category', value)}
                         />
                       ) : (
@@ -214,7 +253,7 @@ export default function Inventory() {
                     <TableCell>
                       {editMode ? (
                         <EditableCell 
-                          value={item.stock} 
+                          value={getDisplayValue(item, 'stock') as number} 
                           type="number"
                           onSave={(value) => handleCellUpdate(item.id, 'stock', value)}
                         />
@@ -228,23 +267,23 @@ export default function Inventory() {
                     <TableCell>
                       {editMode ? (
                         <EditableCell 
-                          value={item.cost} 
+                          value={getDisplayValue(item, 'cost') as number} 
                           type="number"
                           onSave={(value) => handleCellUpdate(item.id, 'cost', value)}
                         />
                       ) : (
-                        `$${item.cost.toFixed(2)}`
+                        `$${item.cost.toLocaleString('es-CL')}`
                       )}
                     </TableCell>
                     <TableCell className="font-semibold">
                       {editMode ? (
                         <EditableCell 
-                          value={item.price} 
+                          value={getDisplayValue(item, 'price') as number} 
                           type="number"
                           onSave={(value) => handleCellUpdate(item.id, 'price', value)}
                         />
                       ) : (
-                        `$${item.price.toFixed(2)}`
+                        `$${item.price.toLocaleString('es-CL')}`
                       )}
                     </TableCell>
                     <TableCell>

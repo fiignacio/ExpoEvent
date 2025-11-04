@@ -131,14 +131,14 @@ export function useProducts() {
         sku: p.sku,
         name: p.name,
         category: p.category,
-        stock: p.stock,
-        price: p.price,
-        cost: p.cost,
+        stock: Number(p.stock),
+        price: Number(p.price),
+        cost: Number(p.cost),
         promotion_type: p.promotion?.type || null,
-        promotion_quantity: p.promotion?.quantity || null,
-        promotion_discounted_price: p.promotion?.discountedPrice || null,
-        promotion_discount_percentage: p.promotion?.discountPercentage || null,
-        promotion_discount_amount: p.promotion?.discountAmount || null,
+        promotion_quantity: p.promotion?.quantity ? Number(p.promotion.quantity) : null,
+        promotion_discounted_price: p.promotion?.discountedPrice ? Number(p.promotion.discountedPrice) : null,
+        promotion_discount_percentage: p.promotion?.discountPercentage ? Number(p.promotion.discountPercentage) : null,
+        promotion_discount_amount: p.promotion?.discountAmount ? Number(p.promotion.discountAmount) : null,
       }));
 
       const { error } = await supabase
@@ -150,7 +150,46 @@ export function useProducts() {
       await fetchProducts();
       return true;
     } catch (error: any) {
+      console.error("Error detallado:", error);
       toast.error(error.message || "Error al importar productos");
+      throw error;
+    }
+  };
+
+  const bulkUpdate = async (updates: { id: string; data: Partial<Omit<Product, "id">> }[]) => {
+    try {
+      const updatePromises = updates.map(({ id, data }) => 
+        supabase
+          .from('products')
+          .update({
+            ...(data.name && { name: data.name }),
+            ...(data.category && { category: data.category }),
+            ...(data.stock !== undefined && { stock: Number(data.stock) }),
+            ...(data.price !== undefined && { price: Number(data.price) }),
+            ...(data.cost !== undefined && { cost: Number(data.cost) }),
+            ...(data.promotion !== undefined && {
+              promotion_type: data.promotion?.type || null,
+              promotion_quantity: data.promotion?.quantity ? Number(data.promotion.quantity) : null,
+              promotion_discounted_price: data.promotion?.discountedPrice ? Number(data.promotion.discountedPrice) : null,
+              promotion_discount_percentage: data.promotion?.discountPercentage ? Number(data.promotion.discountPercentage) : null,
+              promotion_discount_amount: data.promotion?.discountAmount ? Number(data.promotion.discountAmount) : null,
+            }),
+          })
+          .eq('id', id)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const errors = results.filter(r => r.error);
+      
+      if (errors.length > 0) {
+        throw new Error(`${errors.length} productos no se pudieron actualizar`);
+      }
+
+      toast.success(`${updates.length} productos actualizados`);
+      await fetchProducts();
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || "Error al actualizar productos");
       throw error;
     }
   };
@@ -162,6 +201,7 @@ export function useProducts() {
     updateProduct,
     deleteProduct,
     bulkUpsert,
+    bulkUpdate,
     refresh: fetchProducts,
   };
 }
