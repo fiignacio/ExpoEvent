@@ -1,20 +1,34 @@
 import { useState } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
 import { useProducts } from "@/hooks/useProducts";
 import { useSettings } from "@/hooks/useSettings";
 
+type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
+
 export default function POS() {
   const { products, loading } = useProducts();
   const { settings } = useSettings();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
+  const [receivedAmount, setReceivedAmount] = useState("");
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -103,8 +117,30 @@ export default function POS() {
       toast.error("El carrito está vacío");
       return;
     }
-    toast.success(`Venta procesada: $${total.toFixed(2)}`);
+    setShowPaymentDialog(true);
+  };
+
+  const processPayment = () => {
+    if (paymentMethod === "efectivo") {
+      const received = parseFloat(receivedAmount);
+      if (!received || received < total) {
+        toast.error("El monto recibido es insuficiente");
+        return;
+      }
+      const change = received - total;
+      toast.success(`Venta procesada. Cambio: $${change.toFixed(2)}`);
+    } else {
+      const methodNames = {
+        debito: "Tarjeta de Débito",
+        credito: "Tarjeta de Crédito",
+        transferencia: "Transferencia"
+      };
+      toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
+    }
     setCart([]);
+    setShowPaymentDialog(false);
+    setReceivedAmount("");
+    setPaymentMethod("efectivo");
   };
 
   return (
@@ -265,6 +301,82 @@ export default function POS() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Procesar Pago</DialogTitle>
+            <DialogDescription>
+              Total a cobrar: <span className="font-bold text-lg text-success">${total.toFixed(2)}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <Label>Método de Pago</Label>
+              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                  <RadioGroupItem value="efectivo" id="efectivo" />
+                  <Label htmlFor="efectivo" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <DollarSign className="w-5 h-5 text-success" />
+                    <span>Efectivo</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                  <RadioGroupItem value="debito" id="debito" />
+                  <Label htmlFor="debito" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    <span>Tarjeta de Débito</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                  <RadioGroupItem value="credito" id="credito" />
+                  <Label htmlFor="credito" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    <span>Tarjeta de Crédito</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                  <RadioGroupItem value="transferencia" id="transferencia" />
+                  <Label htmlFor="transferencia" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <Building2 className="w-5 h-5 text-primary" />
+                    <span>Transferencia</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {paymentMethod === "efectivo" && (
+              <div className="space-y-2">
+                <Label htmlFor="received">Monto Recibido</Label>
+                <Input
+                  id="received"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={receivedAmount}
+                  onChange={(e) => setReceivedAmount(e.target.value)}
+                  autoFocus
+                />
+                {receivedAmount && parseFloat(receivedAmount) >= total && (
+                  <p className="text-sm text-muted-foreground">
+                    Cambio: <span className="font-bold text-success">${(parseFloat(receivedAmount) - total).toFixed(2)}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPaymentDialog(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button onClick={processPayment} className="flex-1 bg-gradient-success">
+                Confirmar Pago
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

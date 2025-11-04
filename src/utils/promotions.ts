@@ -7,15 +7,21 @@ export function calculatePromotionDiscount(item: CartItem): number {
 
   switch (promotion.type) {
     case "bulk":
-      if (promotion.quantity && promotion.discountedPrice) {
+      // Solo aplicar descuento si se alcanza la cantidad mínima
+      if (promotion.quantity && promotion.discountedPrice && item.quantity >= promotion.quantity) {
         const promoSets = Math.floor(item.quantity / promotion.quantity);
         const remainingItems = item.quantity % promotion.quantity;
         
+        // Total con promoción
         const promoTotal = promoSets * promotion.discountedPrice;
+        // Items que no califican para la promo se cobran a precio normal
         const regularTotal = remainingItems * item.price;
         const actualTotal = promoTotal + regularTotal;
+        
+        // Total sin promoción
         const originalTotal = item.quantity * item.price;
         
+        // El descuento es la diferencia
         return originalTotal - actualTotal;
       }
       break;
