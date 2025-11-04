@@ -13,6 +13,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 import Auth from "./pages/Auth";
+import CreateTestUsers from "./pages/CreateTestUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const AppRoutes = () => {
     return (
       <Routes>
         <Route path="/auth" element={<Auth />} />
+        <Route path="/setup" element={<CreateTestUsers />} />
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     );
