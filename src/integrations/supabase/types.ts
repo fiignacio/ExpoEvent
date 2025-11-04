@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_name?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string
@@ -166,6 +199,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authenticate_with_code: {
+        Args: { _code: string }
+        Returns: {
+          email: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+          user_name: string
+        }[]
+      }
       get_email_by_username: { Args: { _username: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }

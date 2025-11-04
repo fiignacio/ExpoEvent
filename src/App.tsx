@@ -12,6 +12,7 @@ import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
+import AccessCodes from "./pages/AccessCodes";
 import Auth from "./pages/Auth";
 import CreateTestUsers from "./pages/CreateTestUsers";
 import NotFound from "./pages/NotFound";
@@ -74,6 +75,7 @@ const AppRoutes = () => {
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+          <Route path="/access-codes" element={<ProtectedRoute adminOnly><AccessCodes /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

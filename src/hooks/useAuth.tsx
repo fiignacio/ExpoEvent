@@ -24,8 +24,7 @@ interface AuthContextType {
   profile: Profile | null;
   role: "admin" | "cashier" | null;
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<{ error: any }>;
-  signUp: (username: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signInWithCode: (code: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -100,76 +99,80 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signIn = async (username: string, password: string) => {
+  const signInWithCode = async (code: string) => {
     try {
-      // Get email from username
-      const { data: emailData, error: emailError } = await supabase
-        .rpc('get_email_by_username', { _username: username });
+      // Verificar el código y obtener datos del usuario
+      const { data: codeData, error: codeError } = await supabase
+        .rpc('authenticate_with_code', { _code: code });
 
-      if (emailError || !emailData) {
-        toast.error("Usuario no encontrado");
-        return { error: new Error("Usuario no encontrado") };
+      if (codeError || !codeData || codeData.length === 0) {
+        toast.error("Código inválido o inactivo");
+        return { error: new Error("Código inválido") };
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: emailData,
-        password,
-      });
+      const { user_id, role, user_name, email } = codeData[0];
 
-      if (error) {
-        toast.error("Error al iniciar sesión: " + error.message);
-      } else {
-        toast.success("Sesión iniciada correctamente");
+      // Si el usuario ya existe, iniciar sesión directamente
+      if (user_id) {
+        // Generar contraseña basada en el código
+        const password = `code_${code}_pass`;
+        
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          toast.error("Error al iniciar sesión");
+          return { error: signInError };
+        }
+
+        toast.success(`Bienvenido, ${user_name}`);
         navigate("/");
+        return { error: null };
       }
 
-      return { error };
-    } catch (error: any) {
-      toast.error("Error al iniciar sesión");
-      return { error };
-    }
-  };
-
-  const signUp = async (username: string, password: string, fullName: string) => {
-    try {
-      // Check if username already exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (existingProfile) {
-        toast.error("El nombre de usuario ya está en uso");
-        return { error: new Error("El nombre de usuario ya está en uso") };
-      }
-
-      // Generate a unique email for Supabase auth
-      const email = `${username}@sistema.local`;
-
-      const { error } = await supabase.auth.signUp({
+      // Si el usuario no existe, crearlo
+      const password = `code_${code}_pass`;
+      
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
-            full_name: fullName,
-            username: username,
+            full_name: user_name,
+            username: code,
           },
         },
       });
 
-      if (error) {
-        toast.error("Error al registrarse: " + error.message);
-      } else {
-        // Update profile with username
-        toast.success("Cuenta creada correctamente");
-        navigate("/");
+      if (signUpError) {
+        toast.error("Error al crear sesión: " + signUpError.message);
+        return { error: signUpError };
       }
 
-      return { error };
+      // Si el usuario fue creado, asignar el rol correcto
+      if (signUpData.user) {
+        // Esperar un momento para que se cree el perfil
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Actualizar el rol del usuario
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role })
+          .eq('user_id', signUpData.user.id);
+
+        if (roleError) {
+          console.error("Error updating role:", roleError);
+        }
+      }
+
+      toast.success(`Bienvenido, ${user_name}`);
+      navigate("/");
+      return { error: null };
     } catch (error: any) {
-      toast.error("Error al registrarse");
+      toast.error("Error al iniciar sesión");
       return { error };
     }
   };
@@ -192,8 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         profile,
         role,
         loading,
-        signIn,
-        signUp,
+        signInWithCode,
         signOut,
       }}
     >

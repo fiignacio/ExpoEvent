@@ -9,6 +9,7 @@ import {
   Settings,
   Shield,
   LogOut,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const navItems = [
   { name: "Reportes", path: "/reports", icon: FileText, adminOnly: false },
   { name: "Configuración", path: "/settings", icon: Settings, adminOnly: true },
   { name: "Usuarios", path: "/users", icon: Shield, adminOnly: true },
+  { name: "Códigos de Acceso", path: "/access-codes", icon: KeyRound, adminOnly: true },
 ];
 
 export const Navigation = () => {

@@ -3,30 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, KeyRound } from "lucide-react";
 
 export default function Auth() {
-  const { signIn, signUp } = useAuth();
-  const [loginUsername, setLoginUsername] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [signupUsername, setSignupUsername] = useState("");
-  const [signupPassword, setSignupPassword] = useState("");
-  const [signupFullName, setSignupFullName] = useState("");
+  const { signInWithCode } = useAuth();
+  const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!accessCode.trim()) {
+      return;
+    }
     setLoading(true);
-    await signIn(loginUsername, loginPassword);
-    setLoading(false);
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    await signUp(signupUsername, signupPassword, signupFullName);
+    await signInWithCode(accessCode.trim());
     setLoading(false);
   };
 
@@ -40,92 +31,34 @@ export default function Auth() {
             </div>
           </div>
           <CardTitle className="text-2xl">Sistema POS</CardTitle>
-          <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
+          <CardDescription>Ingresa tu código de acceso para continuar</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="signup">Registrarse</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-username">Nombre de Usuario</Label>
-                      <Input
-                        id="login-username"
-                        type="text"
-                        value={loginUsername}
-                        onChange={(e) => setLoginUsername(e.target.value)}
-                        required
-                        placeholder="admin"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password">Contraseña</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
-                    </Button>
-                    <div className="text-center">
-                      <a href="/setup" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                        ¿Necesitas crear usuarios de prueba?
-                      </a>
-                    </div>
-                  </form>
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nombre Completo</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    value={signupFullName}
-                    onChange={(e) => setSignupFullName(e.target.value)}
-                    required
-                    placeholder="Juan Pérez"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-username">Nombre de Usuario</Label>
-                  <Input
-                    id="signup-username"
-                    type="text"
-                    value={signupUsername}
-                    onChange={(e) => setSignupUsername(e.target.value)}
-                    required
-                    placeholder="usuario123"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Contraseña</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creando cuenta..." : "Crear Cuenta"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="access-code">Código de Acceso</Label>
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <Input
+                  id="access-code"
+                  type="text"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                  required
+                  placeholder="INGRESA TU CÓDIGO"
+                  className="pl-10 text-center text-lg font-semibold tracking-wider"
+                  autoComplete="off"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Solicita tu código de acceso al administrador
+              </p>
+            </div>
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Verificando código..." : "Ingresar"}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
