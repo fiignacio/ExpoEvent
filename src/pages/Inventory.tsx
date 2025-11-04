@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Edit, Trash2, Package, Tag } from "lucide-react";
+import { Search, Edit, Trash2, Package, Tag, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,12 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Product } from "@/types/product";
 import { ExcelImport } from "@/components/ExcelImport";
 import { ProductDialog } from "@/components/ProductDialog";
+import { EditableCell } from "@/components/EditableCell";
 import { getPromotionLabel } from "@/utils/promotions";
 import { useProducts } from "@/hooks/useProducts";
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [editMode, setEditMode] = useState(false);
   const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert } = useProducts();
 
   const filteredInventory = products.filter(item =>
@@ -43,6 +45,16 @@ export default function Inventory() {
 
   const handleBulkImport = async (importedProducts: Omit<Product, "id">[]) => {
     await bulkUpsert(importedProducts);
+  };
+
+  const handleCellUpdate = async (productId: string, field: keyof Product, value: any) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    await updateProduct(productId, {
+      ...product,
+      [field]: value
+    });
   };
 
   if (loading) {
@@ -71,6 +83,22 @@ export default function Inventory() {
           <p className="text-muted-foreground mt-1">Gestiona tu catálogo de productos</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant={editMode ? "default" : "outline"}
+            onClick={() => setEditMode(!editMode)}
+          >
+            {editMode ? (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Modo Edición Activo
+              </>
+            ) : (
+              <>
+                <Edit className="w-4 h-4 mr-2" />
+                Edición Rápida
+              </>
+            )}
+          </Button>
           <ExcelImport onImport={handleBulkImport} />
           <ProductDialog 
             onSave={handleAddProduct}
@@ -162,17 +190,63 @@ export default function Inventory() {
                 const margin = ((item.price - item.cost) / item.price * 100).toFixed(1);
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{item.stock}</span>
-                        {getStockBadge(item.stock)}
-                      </div>
+                    <TableCell className="font-medium">
+                      {editMode ? (
+                        <EditableCell 
+                          value={item.name} 
+                          onSave={(value) => handleCellUpdate(item.id, 'name', value)}
+                        />
+                      ) : (
+                        item.name
+                      )}
                     </TableCell>
-                    <TableCell>${item.cost.toFixed(2)}</TableCell>
-                    <TableCell className="font-semibold">${item.price.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                    <TableCell>
+                      {editMode ? (
+                        <EditableCell 
+                          value={item.category} 
+                          onSave={(value) => handleCellUpdate(item.id, 'category', value)}
+                        />
+                      ) : (
+                        item.category
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editMode ? (
+                        <EditableCell 
+                          value={item.stock} 
+                          type="number"
+                          onSave={(value) => handleCellUpdate(item.id, 'stock', value)}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{item.stock}</span>
+                          {getStockBadge(item.stock)}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editMode ? (
+                        <EditableCell 
+                          value={item.cost} 
+                          type="number"
+                          onSave={(value) => handleCellUpdate(item.id, 'cost', value)}
+                        />
+                      ) : (
+                        `$${item.cost.toFixed(2)}`
+                      )}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {editMode ? (
+                        <EditableCell 
+                          value={item.price} 
+                          type="number"
+                          onSave={(value) => handleCellUpdate(item.id, 'price', value)}
+                        />
+                      ) : (
+                        `$${item.price.toFixed(2)}`
+                      )}
+                    </TableCell>
                     <TableCell>
                       {item.promotion ? (
                         <Badge variant="outline" className="gap-1">

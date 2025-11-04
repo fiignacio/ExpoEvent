@@ -88,9 +88,12 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
           Importar Excel
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby="excel-import-description">
         <DialogHeader>
           <DialogTitle>Importar Productos desde Excel</DialogTitle>
+          <p id="excel-import-description" className="text-sm text-muted-foreground">
+            Sube un archivo Excel para importar o actualizar productos masivamente
+          </p>
         </DialogHeader>
         <div className="space-y-4">
           <div className="border-2 border-dashed rounded-lg p-8 text-center">
