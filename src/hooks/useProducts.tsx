@@ -127,31 +127,74 @@ export function useProducts() {
 
   const bulkUpsert = async (products: Omit<Product, "id">[]) => {
     try {
-      const productsToUpsert = products.map(p => ({
-        sku: p.sku,
-        name: p.name,
-        category: p.category,
-        stock: Number(p.stock),
-        price: Number(p.price),
-        cost: Number(p.cost),
-        promotion_type: p.promotion?.type || null,
-        promotion_quantity: p.promotion?.quantity ? Number(p.promotion.quantity) : null,
-        promotion_discounted_price: p.promotion?.discountedPrice ? Number(p.promotion.discountedPrice) : null,
-        promotion_discount_percentage: p.promotion?.discountPercentage ? Number(p.promotion.discountPercentage) : null,
-        promotion_discount_amount: p.promotion?.discountAmount ? Number(p.promotion.discountAmount) : null,
-      }));
+      const errors: string[] = [];
+      const productsToUpsert = [];
 
-      const { error } = await supabase
+      for (let i = 0; i < products.length; i++) {
+        const p = products[i];
+        try {
+          const productData = {
+            sku: p.sku,
+            name: p.name,
+            category: p.category,
+            stock: Number(p.stock),
+            price: Number(p.price),
+            cost: Number(p.cost),
+            promotion_type: p.promotion?.type || null,
+            promotion_quantity: p.promotion?.quantity ? Number(p.promotion.quantity) : null,
+            promotion_discounted_price: p.promotion?.discountedPrice ? Number(p.promotion.discountedPrice) : null,
+            promotion_discount_percentage: p.promotion?.discountPercentage ? Number(p.promotion.discountPercentage) : null,
+            promotion_discount_amount: p.promotion?.discountAmount ? Number(p.promotion.discountAmount) : null,
+          };
+
+          // Validar que los números sean válidos
+          if (isNaN(productData.stock)) {
+            errors.push(`Producto ${p.sku}: Stock inválido`);
+            continue;
+          }
+          if (isNaN(productData.price)) {
+            errors.push(`Producto ${p.sku}: Precio inválido`);
+            continue;
+          }
+          if (isNaN(productData.cost)) {
+            errors.push(`Producto ${p.sku}: Costo inválido`);
+            continue;
+          }
+
+          productsToUpsert.push(productData);
+        } catch (err: any) {
+          errors.push(`Producto ${p.sku}: ${err.message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        const errorMsg = `Errores en ${errors.length} producto(s):\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`;
+        toast.error(errorMsg, { duration: 10000 });
+        console.error("Errores detallados:", errors);
+      }
+
+      if (productsToUpsert.length === 0) {
+        throw new Error("No hay productos válidos para importar");
+      }
+
+      const { error, data } = await supabase
         .from('products')
         .upsert(productsToUpsert, { onConflict: 'sku' });
 
-      if (error) throw error;
+      if (error) {
+        const detailedError = `Error de base de datos: ${error.message}${error.details ? ` - ${error.details}` : ''}${error.hint ? ` (Sugerencia: ${error.hint})` : ''}`;
+        toast.error(detailedError, { duration: 10000 });
+        throw new Error(detailedError);
+      }
 
       await fetchProducts();
       return true;
     } catch (error: any) {
       console.error("Error detallado:", error);
-      toast.error(error.message || "Error al importar productos");
+      const errorMessage = error.message || "Error al importar productos";
+      if (!errorMessage.includes("Error de base de datos")) {
+        toast.error(errorMessage, { duration: 10000 });
+      }
       throw error;
     }
   };

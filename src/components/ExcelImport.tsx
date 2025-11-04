@@ -48,32 +48,92 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const products: Omit<Product, "id">[] = jsonData.map((row: any) => {
-          const product: Omit<Product, "id"> = {
-            name: row.nombre || row.name,
-            sku: row.sku || "",
-            category: row.categoria || row.category || "Sin categoría",
-            stock: Number(row.stock) || 0,
-            price: Number(row.precio || row.price) || 0,
-            cost: Number(row.costo || row.cost) || 0,
-          };
+        const products: Omit<Product, "id">[] = [];
+        const errors: string[] = [];
 
-          if (row.promo_tipo) {
-            product.promotion = {
-              type: row.promo_tipo,
-              quantity: Number(row.promo_cantidad),
-              discountedPrice: Number(row.promo_precio),
+        jsonData.forEach((row: any, index: number) => {
+          try {
+            const rowNumber = index + 2; // +2 porque Excel empieza en 1 y tiene encabezado
+            
+            // Validaciones
+            if (!row.nombre && !row.name) {
+              errors.push(`Fila ${rowNumber}: Falta el nombre del producto`);
+              return;
+            }
+            if (!row.sku) {
+              errors.push(`Fila ${rowNumber}: Falta el SKU del producto`);
+              return;
+            }
+
+            const stock = Number(row.stock);
+            const price = Number(row.precio || row.price);
+            const cost = Number(row.costo || row.cost);
+
+            if (isNaN(stock)) {
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El stock "${row.stock}" no es un número válido`);
+              return;
+            }
+            if (isNaN(price)) {
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El precio "${row.precio || row.price}" no es un número válido`);
+              return;
+            }
+            if (isNaN(cost)) {
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El costo "${row.costo || row.cost}" no es un número válido`);
+              return;
+            }
+
+            const product: Omit<Product, "id"> = {
+              name: row.nombre || row.name,
+              sku: row.sku,
+              category: row.categoria || row.category || "Sin categoría",
+              stock: stock,
+              price: price,
+              cost: cost,
             };
-          }
 
-          return product;
+            if (row.promo_tipo) {
+              const promoQuantity = Number(row.promo_cantidad);
+              const promoPrice = Number(row.promo_precio);
+
+              if (isNaN(promoQuantity)) {
+                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): La cantidad de promoción "${row.promo_cantidad}" no es válida`);
+                return;
+              }
+              if (isNaN(promoPrice)) {
+                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El precio de promoción "${row.promo_precio}" no es válido`);
+                return;
+              }
+
+              product.promotion = {
+                type: row.promo_tipo,
+                quantity: promoQuantity,
+                discountedPrice: promoPrice,
+              };
+            }
+
+            products.push(product);
+          } catch (error: any) {
+            errors.push(`Fila ${index + 2}: ${error.message}`);
+          }
         });
+
+        if (errors.length > 0) {
+          const errorMessage = `Se encontraron ${errors.length} error(es):\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`;
+          toast.error(errorMessage, { duration: 10000 });
+          console.error("Errores detallados:", errors);
+          return;
+        }
+
+        if (products.length === 0) {
+          toast.error("No se encontraron productos válidos en el archivo");
+          return;
+        }
 
         await onImport(products);
         toast.success(`${products.length} productos importados/actualizados`);
         setOpen(false);
-      } catch (error) {
-        toast.error("Error al procesar el archivo");
+      } catch (error: any) {
+        toast.error(`Error al procesar el archivo: ${error.message}`);
         console.error(error);
       }
     };
