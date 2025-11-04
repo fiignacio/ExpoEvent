@@ -9,6 +9,7 @@ interface Profile {
   user_id: string;
   full_name: string;
   email: string;
+  username: string;
 }
 
 interface UserRole {
@@ -23,8 +24,8 @@ interface AuthContextType {
   profile: Profile | null;
   role: "admin" | "cashier" | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signIn: (username: string, password: string) => Promise<{ error: any }>;
+  signUp: (username: string, password: string, fullName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -99,42 +100,78 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const signIn = async (username: string, password: string) => {
+    try {
+      // Get email from username
+      const { data: emailData, error: emailError } = await supabase
+        .rpc('get_email_by_username', { _username: username });
 
-    if (error) {
-      toast.error("Error al iniciar sesión: " + error.message);
-    } else {
-      toast.success("Sesión iniciada correctamente");
-      navigate("/");
+      if (emailError || !emailData) {
+        toast.error("Usuario no encontrado");
+        return { error: new Error("Usuario no encontrado") };
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailData,
+        password,
+      });
+
+      if (error) {
+        toast.error("Error al iniciar sesión: " + error.message);
+      } else {
+        toast.success("Sesión iniciada correctamente");
+        navigate("/");
+      }
+
+      return { error };
+    } catch (error: any) {
+      toast.error("Error al iniciar sesión");
+      return { error };
     }
-
-    return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName,
+  const signUp = async (username: string, password: string, fullName: string) => {
+    try {
+      // Check if username already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (existingProfile) {
+        toast.error("El nombre de usuario ya está en uso");
+        return { error: new Error("El nombre de usuario ya está en uso") };
+      }
+
+      // Generate a unique email for Supabase auth
+      const email = `${username}@sistema.local`;
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+            username: username,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      toast.error("Error al registrarse: " + error.message);
-    } else {
-      toast.success("Cuenta creada correctamente");
-      navigate("/");
+      if (error) {
+        toast.error("Error al registrarse: " + error.message);
+      } else {
+        // Update profile with username
+        toast.success("Cuenta creada correctamente");
+        navigate("/");
+      }
+
+      return { error };
+    } catch (error: any) {
+      toast.error("Error al registrarse");
+      return { error };
     }
-
-    return { error };
   };
 
   const signOut = async () => {

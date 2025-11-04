@@ -9,9 +9,9 @@ import { ShoppingCart } from "lucide-react";
 
 export default function Auth() {
   const { signIn, signUp } = useAuth();
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
+  const [signupUsername, setSignupUsername] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupFullName, setSignupFullName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,14 +19,14 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signIn(loginEmail, loginPassword);
+    await signIn(loginUsername, loginPassword);
     setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signUp(signupEmail, signupPassword, signupFullName);
+    await signUp(signupUsername, signupPassword, signupFullName);
     setLoading(false);
   };
 
@@ -52,14 +52,14 @@ export default function Auth() {
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email">Correo Electrónico</Label>
+                  <Label htmlFor="login-username">Nombre de Usuario</Label>
                   <Input
-                    id="login-email"
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    id="login-username"
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
                     required
-                    placeholder="usuario@ejemplo.com"
+                    placeholder="admin"
                   />
                 </div>
                 <div className="space-y-2">
@@ -93,14 +93,14 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Correo Electrónico</Label>
+                  <Label htmlFor="signup-username">Nombre de Usuario</Label>
                   <Input
-                    id="signup-email"
-                    type="email"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
+                    id="signup-username"
+                    type="text"
+                    value={signupUsername}
+                    onChange={(e) => setSignupUsername(e.target.value)}
                     required
-                    placeholder="usuario@ejemplo.com"
+                    placeholder="usuario123"
                   />
                 </div>
                 <div className="space-y-2">
