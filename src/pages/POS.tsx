@@ -18,6 +18,7 @@ import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
 import { useProducts } from "@/hooks/useProducts";
 import { useSettings } from "@/hooks/useSettings";
+import { supabase } from "@/integrations/supabase/client";
 
 type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
 
@@ -45,6 +46,14 @@ export default function POS() {
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
+    const currentQuantity = existingItem ? existingItem.quantity : 0;
+    
+    // Verificar stock disponible
+    if (currentQuantity + 1 > product.stock) {
+      toast.error(`Stock insuficiente. Solo hay ${product.stock} unidades disponibles`);
+      return;
+    }
+
     if (existingItem) {
       const newCart = cart.map(item =>
         item.id === product.id
@@ -88,13 +97,23 @@ export default function POS() {
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    const newCart = cart.map(item => {
-      if (item.id === id) {
-        const newQuantity = item.quantity + delta;
-        return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+
+    const newQuantity = item.quantity + delta;
+    
+    // Verificar stock disponible al aumentar cantidad
+    if (delta > 0 && newQuantity > item.stock) {
+      toast.error(`Stock insuficiente. Solo hay ${item.stock} unidades disponibles`);
+      return;
+    }
+
+    const newCart = cart.map(cartItem => {
+      if (cartItem.id === id) {
+        return newQuantity > 0 ? { ...cartItem, quantity: newQuantity } : cartItem;
       }
-      return item;
-    }).filter(item => item.quantity > 0);
+      return cartItem;
+    }).filter(cartItem => cartItem.quantity > 0);
     
     setCart(newCart);
     checkPromotion(newCart, id);
@@ -120,27 +139,54 @@ export default function POS() {
     setShowPaymentDialog(true);
   };
 
-  const processPayment = () => {
+  const processPayment = async () => {
     if (paymentMethod === "efectivo") {
       const received = parseFloat(receivedAmount);
       if (!received || received < total) {
         toast.error("El monto recibido es insuficiente");
         return;
       }
-      const change = received - total;
-      toast.success(`Venta procesada. Cambio: $${change.toFixed(2)}`);
-    } else {
-      const methodNames = {
-        debito: "Tarjeta de Débito",
-        credito: "Tarjeta de Crédito",
-        transferencia: "Transferencia"
-      };
-      toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
     }
-    setCart([]);
-    setShowPaymentDialog(false);
-    setReceivedAmount("");
-    setPaymentMethod("efectivo");
+
+    try {
+      // Actualizar stock de cada producto en el carrito
+      for (const item of cart) {
+        const newStock = (item.stock || 0) - item.quantity;
+        
+        if (newStock < 0) {
+          toast.error(`Stock insuficiente para ${item.name}`);
+          return;
+        }
+
+        const { error } = await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.id);
+
+        if (error) throw error;
+      }
+
+      // Mostrar mensaje de éxito según método de pago
+      if (paymentMethod === "efectivo") {
+        const received = parseFloat(receivedAmount);
+        const change = received - total;
+        toast.success(`Venta procesada. Cambio: $${change.toFixed(2)}`);
+      } else {
+        const methodNames = {
+          debito: "Tarjeta de Débito",
+          credito: "Tarjeta de Crédito",
+          transferencia: "Transferencia"
+        };
+        toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
+      }
+
+      setCart([]);
+      setShowPaymentDialog(false);
+      setReceivedAmount("");
+      setPaymentMethod("efectivo");
+    } catch (error: any) {
+      toast.error("Error al procesar la venta: " + error.message);
+    }
   };
 
   return (
