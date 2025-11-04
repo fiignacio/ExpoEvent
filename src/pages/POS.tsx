@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
@@ -22,14 +23,91 @@ import { supabase } from "@/integrations/supabase/client";
 
 type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
 
+interface CartSession {
+  id: string;
+  name: string;
+  items: CartItem[];
+}
+
+const STORAGE_KEY = "pos_cart_sessions";
+
 export default function POS() {
   const { products, loading } = useProducts();
   const { settings } = useSettings();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartSessions, setCartSessions] = useState<CartSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [receivedAmount, setReceivedAmount] = useState("");
+
+  // Cargar sesiones desde localStorage al iniciar
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const sessions = JSON.parse(stored);
+      setCartSessions(sessions);
+      if (sessions.length > 0) {
+        setActiveSessionId(sessions[0].id);
+      }
+    } else {
+      // Crear primera sesión
+      const firstSession: CartSession = {
+        id: crypto.randomUUID(),
+        name: "Venta 1",
+        items: []
+      };
+      setCartSessions([firstSession]);
+      setActiveSessionId(firstSession.id);
+    }
+  }, []);
+
+  // Guardar sesiones en localStorage cuando cambien
+  useEffect(() => {
+    if (cartSessions.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cartSessions));
+    }
+  }, [cartSessions]);
+
+  const activeSession = cartSessions.find(s => s.id === activeSessionId);
+  const cart = activeSession?.items || [];
+
+  const setCart = (newCart: CartItem[]) => {
+    setCartSessions(prev => prev.map(session => 
+      session.id === activeSessionId 
+        ? { ...session, items: newCart }
+        : session
+    ));
+  };
+
+  const createNewSession = () => {
+    const newSession: CartSession = {
+      id: crypto.randomUUID(),
+      name: `Venta ${cartSessions.length + 1}`,
+      items: []
+    };
+    setCartSessions(prev => [...prev, newSession]);
+    setActiveSessionId(newSession.id);
+    toast.success("Nuevo carrito creado");
+  };
+
+  const closeSession = (sessionId: string) => {
+    if (cartSessions.length === 1) {
+      toast.error("No puedes cerrar el último carrito");
+      return;
+    }
+    const sessionToClose = cartSessions.find(s => s.id === sessionId);
+    if (sessionToClose && sessionToClose.items.length > 0) {
+      toast.error("No puedes cerrar un carrito con productos");
+      return;
+    }
+    const newSessions = cartSessions.filter(s => s.id !== sessionId);
+    setCartSessions(newSessions);
+    if (activeSessionId === sessionId) {
+      setActiveSessionId(newSessions[0].id);
+    }
+    toast.info("Carrito cerrado");
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -180,7 +258,15 @@ export default function POS() {
         toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
       }
 
+      // Limpiar carrito actual y crear uno nuevo si es necesario
       setCart([]);
+      
+      // Si solo hay una sesión, mantenerla vacía
+      // Si hay más de una, cerrar la actual y crear una nueva si es la última
+      if (cartSessions.length > 1) {
+        closeSession(activeSessionId);
+      }
+      
       setShowPaymentDialog(false);
       setReceivedAmount("");
       setPaymentMethod("efectivo");
@@ -193,6 +279,48 @@ export default function POS() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
       {/* Products Section */}
       <div className="lg:col-span-2 space-y-4 overflow-auto">
+        {/* Tabs para múltiples carritos */}
+        <div className="flex items-center gap-2 bg-card p-2 rounded-lg border">
+          <Tabs value={activeSessionId} onValueChange={setActiveSessionId} className="flex-1">
+            <TabsList className="h-auto flex-wrap justify-start">
+              {cartSessions.map((session) => (
+                <TabsTrigger 
+                  key={session.id} 
+                  value={session.id}
+                  className="relative pr-8 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {session.name}
+                  {session.items.length > 0 && (
+                    <Badge className="ml-2 h-5 min-w-5 px-1">{session.items.length}</Badge>
+                  )}
+                  {cartSessions.length > 1 && session.items.length === 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeSession(session.id);
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={createNewSession}
+            className="whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Carrito
+          </Button>
+        </div>
         <div>
           <h1 className="text-3xl font-bold">Punto de Venta</h1>
           <p className="text-muted-foreground mt-1">Selecciona productos para agregar al carrito</p>
