@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
 import { useProducts } from "@/hooks/useProducts";
+import { useSettings } from "@/hooks/useSettings";
 
 export default function POS() {
   const { products, loading } = useProducts();
+  const { settings } = useSettings();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -92,7 +94,8 @@ export default function POS() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalDiscounts = cart.reduce((sum, item) => sum + (item.appliedDiscount || 0), 0);
   const subtotalAfterDiscounts = subtotal - totalDiscounts;
-  const tax = subtotalAfterDiscounts * 0.16;
+  const taxRate = (settings?.tax_rate || 0) / 100;
+  const tax = taxRate > 0 ? subtotalAfterDiscounts * taxRate : 0;
   const total = subtotalAfterDiscounts + tax;
 
   const handleCheckout = () => {
@@ -237,10 +240,14 @@ export default function POS() {
                   <span className="font-medium text-success">-${totalDiscounts.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">IVA (16%)</span>
-                <span className="font-medium">${tax.toFixed(2)}</span>
-              </div>
+              {taxRate > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    IVA ({(taxRate * 100).toFixed(0)}%)
+                  </span>
+                  <span className="font-medium">${tax.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xl font-bold pt-2 border-t">
                 <span>Total</span>
                 <span className="text-success">${total.toFixed(2)}</span>
