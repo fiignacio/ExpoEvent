@@ -42,16 +42,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          // Limpiar estado antes de cargar nuevos datos
+          setProfile(null);
+          setRole(null);
+          
+          // Usar setTimeout para evitar deadlock
           setTimeout(() => {
             fetchUserData(session.user.id);
           }, 0);
         } else {
           setProfile(null);
           setRole(null);
+          setLoading(false);
         }
       }
     );
@@ -73,27 +80,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log("Fetching user data for:", userId);
+      
       // Fetch profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
-        .maybeSingle();
+        .single();
 
       if (profileError) throw profileError;
+      
+      console.log("Profile data:", profileData);
       setProfile(profileData);
 
-      // Fetch role
+      // Fetch role - forzar recarga desde la base de datos
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("*")
         .eq("user_id", userId)
-        .maybeSingle();
+        .single();
 
       if (roleError) throw roleError;
+      
+      console.log("Role data:", roleData);
       setRole(roleData?.role ?? null);
     } catch (error: any) {
       console.error("Error fetching user data:", error);
+      setProfile(null);
+      setRole(null);
     } finally {
       setLoading(false);
     }
@@ -114,10 +129,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Si el usuario ya existe, iniciar sesión directamente
       if (user_id) {
+        console.log("Usuario existente, iniciando sesión:", user_id);
+        
+        // Limpiar estado antes de iniciar sesión
+        setProfile(null);
+        setRole(null);
+        
         // Generar contraseña basada en el código
         const password = `code_${code}_pass`;
         
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -125,6 +146,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (signInError) {
           toast.error("Error al iniciar sesión");
           return { error: signInError };
+        }
+
+        // Forzar recarga de datos del usuario después del login
+        if (signInData.user) {
+          await fetchUserData(signInData.user.id);
         }
 
         toast.success(`Bienvenido, ${user_name}`);
