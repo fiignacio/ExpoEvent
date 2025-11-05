@@ -129,7 +129,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Si el usuario ya existe, iniciar sesión directamente
       if (user_id) {
-        console.log("Usuario existente, iniciando sesión:", user_id);
+        console.log("Usuario existente, iniciando sesión con rol:", role);
+        
+        // PRIMERO: Sincronizar el rol correcto ANTES de iniciar sesión
+        const { error: syncError } = await supabase
+          .rpc('sync_role_on_login', { _email: email, _role: role });
+
+        if (syncError) {
+          console.error("Error sincronizando rol:", syncError);
+        }
         
         // Limpiar estado antes de iniciar sesión
         setProfile(null);
@@ -148,10 +156,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return { error: signInError };
         }
 
-        // Forzar recarga de datos del usuario después del login
-        if (signInData.user) {
-          await fetchUserData(signInData.user.id);
-        }
+        console.log("Login exitoso, recargando datos del usuario");
 
         toast.success(`Bienvenido, ${user_name}`);
         navigate("/");

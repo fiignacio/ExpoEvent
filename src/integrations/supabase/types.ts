@@ -220,6 +220,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      sync_role_on_login: {
+        Args: { _email: string; _role: Database["public"]["Enums"]["app_role"] }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "cashier"
