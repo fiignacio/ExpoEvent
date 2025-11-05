@@ -152,19 +152,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: signUpError };
       }
 
-      // Si el usuario fue creado, asignar el rol correcto
+      // Si el usuario fue creado, asignar el rol correcto desde el código
       if (signUpData.user) {
-        // Esperar un momento para que se cree el perfil
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Esperar un momento para que se cree el perfil y el rol por defecto
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Actualizar el rol del usuario
-        const { error: roleError } = await supabase
+        // Eliminar el rol por defecto y crear el rol correcto
+        await supabase
           .from('user_roles')
-          .update({ role })
+          .delete()
           .eq('user_id', signUpData.user.id);
 
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: signUpData.user.id, role });
+
         if (roleError) {
-          console.error("Error updating role:", roleError);
+          console.error("Error asignando rol:", roleError);
         }
       }
 
