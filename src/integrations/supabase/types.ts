@@ -47,6 +47,92 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_register_sessions: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          final_amount: number | null
+          id: string
+          initial_amount: number
+          opened_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          final_amount?: number | null
+          id?: string
+          initial_amount?: number
+          opened_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          final_amount?: number | null
+          id?: string
+          initial_amount?: number
+          opened_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      offline_sales: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          payment_method: string
+          session_id: string | null
+          subtotal: number
+          synced: boolean
+          synced_at: string | null
+          tax: number
+          total: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items: Json
+          payment_method: string
+          session_id?: string | null
+          subtotal: number
+          synced?: boolean
+          synced_at?: string | null
+          tax?: number
+          total: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          payment_method?: string
+          session_id?: string | null
+          subtotal?: number
+          synced?: boolean
+          synced_at?: string | null
+          tax?: number
+          total?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_sales_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_register_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,11 @@ import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
 import { useProducts } from "@/hooks/useProducts";
 import { useSettings } from "@/hooks/useSettings";
+import { useCashRegister } from "@/hooks/useCashRegister";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useAuth } from "@/hooks/useAuth";
+import { OpenCashDialog } from "@/components/OpenCashDialog";
+import { CloseCashDialog } from "@/components/CloseCashDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
@@ -34,10 +39,15 @@ const STORAGE_KEY = "pos_cart_sessions";
 export default function POS() {
   const { products, loading } = useProducts();
   const { settings } = useSettings();
+  const { currentSession, loading: sessionLoading, openSession, closeSession: closeCashSession } = useCashRegister();
+  const { isOnline, isSyncing, pendingSales, addOfflineSale } = useOfflineSync();
+  const { signOut, user } = useAuth();
   const [cartSessions, setCartSessions] = useState<CartSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showOpenCashDialog, setShowOpenCashDialog] = useState(false);
+  const [showCloseCashDialog, setShowCloseCashDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [receivedAmount, setReceivedAmount] = useState("");
 
@@ -91,7 +101,7 @@ export default function POS() {
     toast.success("Nuevo carrito creado");
   };
 
-  const closeSession = (sessionId: string) => {
+  const closeCartSession = (sessionId: string) => {
     if (cartSessions.length === 1) {
       toast.error("No puedes cerrar el último carrito");
       return;
@@ -114,10 +124,42 @@ export default function POS() {
     product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
+  useEffect(() => {
+    if (!sessionLoading && !currentSession) {
+      setShowOpenCashDialog(true);
+    }
+  }, [sessionLoading, currentSession]);
+
+  const handleOpenCash = async (initialAmount: number) => {
+    await openSession(initialAmount);
+  };
+
+  const handleCloseCash = async (finalAmount: number) => {
+    const success = await closeCashSession(finalAmount);
+    if (success) {
+      await signOut();
+    }
+  };
+
+  if (loading || sessionLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Cargando productos...</div>
+        <div className="text-lg">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!currentSession) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
+        <Lock className="w-16 h-16 text-muted-foreground" />
+        <div className="text-xl font-semibold">Caja Cerrada</div>
+        <p className="text-muted-foreground">Abre la caja para comenzar a vender</p>
+        <OpenCashDialog
+          open={showOpenCashDialog}
+          onOpenChange={setShowOpenCashDialog}
+          onConfirm={handleOpenCash}
+        />
       </div>
     );
   }
@@ -227,44 +269,86 @@ export default function POS() {
     }
 
     try {
-      // Actualizar stock de cada producto en el carrito
-      for (const item of cart) {
-        const newStock = (item.stock || 0) - item.quantity;
-        
-        if (newStock < 0) {
-          toast.error(`Stock insuficiente para ${item.name}`);
-          return;
+      if (!isOnline) {
+        // Modo offline: guardar venta para sincronización posterior
+        addOfflineSale({
+          sessionId: currentSession?.id || null,
+          items: cart,
+          subtotal: subtotalAfterDiscounts,
+          tax,
+          total,
+          paymentMethod
+        });
+
+        // Actualizar stock localmente
+        cart.forEach(item => {
+          const productIndex = products.findIndex(p => p.id === item.id);
+          if (productIndex !== -1) {
+            products[productIndex].stock -= item.quantity;
+          }
+        });
+
+        if (paymentMethod === "efectivo") {
+          const received = parseFloat(receivedAmount);
+          const change = received - total;
+          toast.success(`Venta guardada (offline). Cambio: $${change.toFixed(2)}`);
+        } else {
+          toast.success("Venta guardada para sincronización");
+        }
+      } else {
+        // Modo online: procesar normalmente
+        for (const item of cart) {
+          const newStock = (item.stock || 0) - item.quantity;
+          
+          if (newStock < 0) {
+            toast.error(`Stock insuficiente para ${item.name}`);
+            return;
+          }
+
+          const { error } = await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', item.id);
+
+          if (error) throw error;
         }
 
-        const { error } = await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.id);
+        // Guardar venta en la base de datos
+        const { error: saleError } = await supabase
+          .from('offline_sales')
+          .insert([{
+            user_id: user?.id || '',
+            session_id: currentSession?.id || null,
+            items: cart as any,
+            subtotal: subtotalAfterDiscounts,
+            tax,
+            total,
+            payment_method: paymentMethod,
+            synced: true,
+            synced_at: new Date().toISOString()
+          }]);
 
-        if (error) throw error;
+        if (saleError) throw saleError;
+
+        if (paymentMethod === "efectivo") {
+          const received = parseFloat(receivedAmount);
+          const change = received - total;
+          toast.success(`Venta procesada. Cambio: $${change.toFixed(2)}`);
+        } else {
+          const methodNames = {
+            debito: "Tarjeta de Débito",
+            credito: "Tarjeta de Crédito",
+            transferencia: "Transferencia"
+          };
+          toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
+        }
       }
 
-      // Mostrar mensaje de éxito según método de pago
-      if (paymentMethod === "efectivo") {
-        const received = parseFloat(receivedAmount);
-        const change = received - total;
-        toast.success(`Venta procesada. Cambio: $${change.toFixed(2)}`);
-      } else {
-        const methodNames = {
-          debito: "Tarjeta de Débito",
-          credito: "Tarjeta de Crédito",
-          transferencia: "Transferencia"
-        };
-        toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
-      }
-
-      // Limpiar carrito actual y crear uno nuevo si es necesario
+      // Limpiar carrito actual
       setCart([]);
       
-      // Si solo hay una sesión, mantenerla vacía
-      // Si hay más de una, cerrar la actual y crear una nueva si es la última
       if (cartSessions.length > 1) {
-        closeSession(activeSessionId);
+        closeCartSession(activeSessionId);
       }
       
       setShowPaymentDialog(false);
@@ -279,6 +363,32 @@ export default function POS() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 min-h-[calc(100vh-10rem)] pb-20 md:pb-0">
       {/* Products Section */}
       <div className="lg:col-span-2 space-y-3 md:space-y-4 overflow-auto">
+        {/* Header con estado de conexión y botón cerrar caja */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Badge variant={isOnline ? "default" : "destructive"} className="text-xs">
+              {isOnline ? "En línea" : "Sin conexión"}
+            </Badge>
+            {pendingSales.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {pendingSales.length} venta(s) pendiente(s)
+              </Badge>
+            )}
+            {isSyncing && (
+              <Badge variant="secondary" className="text-xs">
+                Sincronizando...
+              </Badge>
+            )}
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowCloseCashDialog(true)}
+          >
+            Cerrar Caja
+          </Button>
+        </div>
+
         {/* Tabs para múltiples carritos */}
         <div className="flex items-center gap-2 bg-card p-2 rounded-lg border">
           <Tabs value={activeSessionId} onValueChange={setActiveSessionId} className="flex-1">
@@ -302,7 +412,7 @@ export default function POS() {
                       className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6"
                       onClick={(e) => {
                         e.stopPropagation();
-                        closeSession(session.id);
+                        closeCartSession(session.id);
                       }}
                     >
                       <X className="w-2 h-2 md:w-3 md:h-3" />
@@ -555,6 +665,19 @@ export default function POS() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogos de apertura/cierre de caja */}
+      <OpenCashDialog
+        open={showOpenCashDialog}
+        onOpenChange={setShowOpenCashDialog}
+        onConfirm={handleOpenCash}
+      />
+      <CloseCashDialog
+        open={showCloseCashDialog}
+        onOpenChange={setShowCloseCashDialog}
+        onConfirm={handleCloseCash}
+        initialAmount={currentSession?.initial_amount || 0}
+      />
     </div>
   );
 }
