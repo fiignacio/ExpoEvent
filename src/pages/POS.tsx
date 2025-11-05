@@ -22,6 +22,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useCashRegister } from "@/hooks/useCashRegister";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAuth } from "@/hooks/useAuth";
+import { useCashSessions } from "@/hooks/useCashSessions";
 import { OpenCashDialog } from "@/components/OpenCashDialog";
 import { CloseCashDialog } from "@/components/CloseCashDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +43,7 @@ export default function POS() {
   const { currentSession, loading: sessionLoading, openSession, closeSession: closeCashSession } = useCashRegister();
   const { isOnline, isSyncing, pendingSales, addOfflineSale } = useOfflineSync();
   const { signOut, user } = useAuth();
+  const { fetchSessionSales } = useCashSessions();
   const [cartSessions, setCartSessions] = useState<CartSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +52,12 @@ export default function POS() {
   const [showCloseCashDialog, setShowCloseCashDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [receivedAmount, setReceivedAmount] = useState("");
+  const [paymentMethodTotals, setPaymentMethodTotals] = useState({
+    efectivo: 0,
+    debito: 0,
+    credito: 0,
+    transferencia: 0
+  });
 
   // Cargar sesiones desde localStorage al iniciar
   useEffect(() => {
@@ -132,6 +140,31 @@ export default function POS() {
 
   const handleOpenCash = async (initialAmount: number) => {
     await openSession(initialAmount);
+  };
+
+  const handleOpenCloseCashDialog = async () => {
+    if (!currentSession) return;
+    
+    // Obtener ventas de la sesión actual
+    const sales = await fetchSessionSales(currentSession.id);
+    
+    // Calcular totales por método de pago
+    const totals = {
+      efectivo: 0,
+      debito: 0,
+      credito: 0,
+      transferencia: 0
+    };
+    
+    sales.forEach((sale: any) => {
+      const method = sale.payment_method.toLowerCase();
+      if (method in totals) {
+        totals[method as keyof typeof totals] += sale.total;
+      }
+    });
+    
+    setPaymentMethodTotals(totals);
+    setShowCloseCashDialog(true);
   };
 
   const handleCloseCash = async (finalAmount: number) => {
@@ -383,7 +416,7 @@ export default function POS() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => setShowCloseCashDialog(true)}
+            onClick={handleOpenCloseCashDialog}
           >
             Cerrar Caja
           </Button>
@@ -677,6 +710,7 @@ export default function POS() {
         onOpenChange={setShowCloseCashDialog}
         onConfirm={handleCloseCash}
         initialAmount={currentSession?.initial_amount || 0}
+        paymentMethodTotals={paymentMethodTotals}
       />
     </div>
   );

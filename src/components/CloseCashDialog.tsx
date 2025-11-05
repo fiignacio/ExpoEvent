@@ -19,20 +19,30 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DollarSign, AlertTriangle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { DollarSign, AlertTriangle, CreditCard, Banknote, Smartphone } from "lucide-react";
+
+interface PaymentMethodTotal {
+  efectivo: number;
+  debito: number;
+  credito: number;
+  transferencia: number;
+}
 
 interface CloseCashDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (finalAmount: number) => void;
   initialAmount: number;
+  paymentMethodTotals: PaymentMethodTotal;
 }
 
 export function CloseCashDialog({ 
   open, 
   onOpenChange, 
   onConfirm, 
-  initialAmount 
+  initialAmount,
+  paymentMethodTotals
 }: CloseCashDialogProps) {
   const [finalAmount, setFinalAmount] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -50,21 +60,77 @@ export function CloseCashDialog({
   };
 
   const difference = parseFloat(finalAmount || "0") - initialAmount;
+  const totalSales = Object.values(paymentMethodTotals).reduce((sum, val) => sum + val, 0);
+
+  const getPaymentIcon = (method: string) => {
+    switch (method) {
+      case 'efectivo':
+        return <Banknote className="w-4 h-4" />;
+      case 'debito':
+      case 'credito':
+        return <CreditCard className="w-4 h-4" />;
+      case 'transferencia':
+        return <Smartphone className="w-4 h-4" />;
+      default:
+        return <DollarSign className="w-4 h-4" />;
+    }
+  };
+
+  const paymentMethodLabels = {
+    efectivo: "Efectivo",
+    debito: "Débito",
+    credito: "Crédito",
+    transferencia: "Transferencia"
+  };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="w-5 h-5" />
               Cierre de Caja
             </DialogTitle>
             <DialogDescription>
-              Ingresa el monto final que hay en la caja
+              Revisa los ingresos por método de pago e ingresa el monto final
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Resumen de Ingresos por Método de Pago */}
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Ingresos por Método de Pago</h4>
+              <div className="grid gap-2">
+                {(Object.entries(paymentMethodTotals) as [keyof PaymentMethodTotal, number][]).map(([method, amount]) => (
+                  <Card key={method}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {getPaymentIcon(method)}
+                          <span className="font-medium text-sm">
+                            {paymentMethodLabels[method]}
+                          </span>
+                        </div>
+                        <span className="font-bold text-success">
+                          ${amount.toFixed(2)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Total Ventas</span>
+                      <span className="font-bold text-lg text-success">
+                        ${totalSales.toFixed(2)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
             <div className="bg-accent p-3 rounded-lg space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Monto Inicial:</span>
@@ -87,7 +153,7 @@ export function CloseCashDialog({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="final-amount">Monto Final</Label>
+              <Label htmlFor="final-amount">Monto Final en Caja</Label>
               <Input
                 id="final-amount"
                 type="number"
