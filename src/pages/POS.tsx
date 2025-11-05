@@ -276,9 +276,9 @@ export default function POS() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 min-h-[calc(100vh-10rem)] pb-20 md:pb-0">
       {/* Products Section */}
-      <div className="lg:col-span-2 space-y-4 overflow-auto">
+      <div className="lg:col-span-2 space-y-3 md:space-y-4 overflow-auto">
         {/* Tabs para múltiples carritos */}
         <div className="flex items-center gap-2 bg-card p-2 rounded-lg border">
           <Tabs value={activeSessionId} onValueChange={setActiveSessionId} className="flex-1">
@@ -287,24 +287,25 @@ export default function POS() {
                 <TabsTrigger 
                   key={session.id} 
                   value={session.id}
-                  className="relative pr-8 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="relative pr-8 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs md:text-sm"
                 >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  {session.name}
+                  <ShoppingCart className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">{session.name}</span>
+                  <span className="sm:hidden">{session.name.split(' ')[1]}</span>
                   {session.items.length > 0 && (
-                    <Badge className="ml-2 h-5 min-w-5 px-1">{session.items.length}</Badge>
+                    <Badge className="ml-1 md:ml-2 h-4 md:h-5 min-w-4 md:min-w-5 px-1 text-xs">{session.items.length}</Badge>
                   )}
                   {cartSessions.length > 1 && session.items.length === 0 && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 h-6 w-6"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6"
                       onClick={(e) => {
                         e.stopPropagation();
                         closeSession(session.id);
                       }}
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-2 h-2 md:w-3 md:h-3" />
                     </Button>
                   )}
                 </TabsTrigger>
@@ -315,47 +316,49 @@ export default function POS() {
             variant="outline"
             size="sm"
             onClick={createNewSession}
-            className="whitespace-nowrap"
+            className="whitespace-nowrap text-xs md:text-sm"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Carrito
+            <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <span className="hidden sm:inline">Nuevo Carrito</span>
+            <span className="sm:hidden">Nuevo</span>
           </Button>
         </div>
         <div>
-          <h1 className="text-3xl font-bold">Punto de Venta</h1>
-          <p className="text-muted-foreground mt-1">Selecciona productos para agregar al carrito</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Punto de Venta</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">Selecciona productos para agregar al carrito</p>
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
           <Input
             placeholder="Buscar productos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-9 md:pl-10 text-sm md:text-base"
           />
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {filteredProducts.map(product => (
               <Card
               key={product.id}
               className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 relative"
               onClick={() => addToCart(product)}
             >
-              <CardContent className="p-6">
+              <CardContent className="p-3 md:p-6">
                 {product.promotion && (
-                  <Badge className="absolute top-2 right-2 bg-warning text-warning-foreground">
-                    <Tag className="w-3 h-3 mr-1" />
-                    {getPromotionLabel(product)}
+                  <Badge className="absolute top-1 right-1 md:top-2 md:right-2 bg-warning text-warning-foreground text-[10px] md:text-xs">
+                    <Tag className="w-2 h-2 md:w-3 md:h-3 mr-0.5 md:mr-1" />
+                    <span className="hidden sm:inline">{getPromotionLabel(product)}</span>
+                    <span className="sm:hidden">PROMO</span>
                   </Badge>
                 )}
-                <div className="aspect-square bg-gradient-subtle rounded-lg mb-4 flex items-center justify-center">
-                  <Package className="w-12 h-12 text-muted-foreground" />
+                <div className="aspect-square bg-gradient-subtle rounded-lg mb-2 md:mb-4 flex items-center justify-center">
+                  <Package className="w-8 h-8 md:w-12 md:h-12 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg">{product.name}</h3>
-                <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
-                <p className="text-xl font-bold text-success">${product.price.toFixed(2)}</p>
+                <h3 className="font-semibold text-sm md:text-lg line-clamp-2">{product.name}</h3>
+                <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2">{product.category}</p>
+                <p className="text-base md:text-xl font-bold text-success">${product.price.toFixed(2)}</p>
               </CardContent>
             </Card>
           ))}
@@ -365,16 +368,16 @@ export default function POS() {
       {/* Cart Section */}
       <div className="lg:col-span-1">
         <Card className="h-full flex flex-col">
-          <CardHeader>
-            <CardTitle>Carrito de Compra</CardTitle>
+          <CardHeader className="pb-3 md:pb-6">
+            <CardTitle className="text-lg md:text-xl">Carrito de Compra</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            <div className="flex-1 overflow-auto space-y-3 mb-6">
+          <CardContent className="flex-1 flex flex-col px-3 md:px-6">
+            <div className="flex-1 overflow-auto space-y-2 md:space-y-3 mb-4 md:mb-6">
               {cart.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                  <p className="text-muted-foreground text-center">
+                  <p className="text-muted-foreground text-center text-sm md:text-base">
                     El carrito está vacío<br />
-                    <span className="text-sm">Agrega productos para comenzar</span>
+                    <span className="text-xs md:text-sm">Agrega productos para comenzar</span>
                   </p>
                 </div>
               ) : (
@@ -384,53 +387,54 @@ export default function POS() {
                   const itemTotal = itemSubtotal - itemDiscount;
                   
                   return (
-                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-accent">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{item.name}</p>
+                  <div key={item.id} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg bg-accent">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 md:gap-2">
+                        <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
                         {item.promotion && (
-                          <Badge variant="outline" className="text-xs">
-                            {getPromotionLabel(item)}
+                          <Badge variant="outline" className="text-[10px] md:text-xs flex-shrink-0">
+                            <span className="hidden sm:inline">{getPromotionLabel(item)}</span>
+                            <span className="sm:hidden">P</span>
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-muted-foreground">${item.price.toFixed(2)} c/u</p>
+                      <div className="flex items-center gap-1 md:gap-2">
+                        <p className="text-xs md:text-sm text-muted-foreground">${item.price.toFixed(2)} c/u</p>
                         {itemDiscount > 0 && (
-                          <p className="text-xs text-success font-semibold">
+                          <p className="text-[10px] md:text-xs text-success font-semibold">
                             -${itemDiscount.toFixed(2)}
                           </p>
                         )}
                       </div>
-                      <p className="text-sm font-semibold">
+                      <p className="text-xs md:text-sm font-semibold">
                         Total: ${itemTotal.toFixed(2)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-6 w-6 md:h-8 md:w-8"
                         onClick={() => updateQuantity(item.id, -1)}
                       >
-                        <Minus className="w-4 h-4" />
+                        <Minus className="w-3 h-3 md:w-4 md:h-4" />
                       </Button>
-                      <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                      <span className="w-6 md:w-8 text-center font-semibold text-xs md:text-base">{item.quantity}</span>
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-6 w-6 md:h-8 md:w-8"
                         onClick={() => updateQuantity(item.id, 1)}
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3 h-3 md:w-4 md:h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive"
+                        className="h-6 w-6 md:h-8 md:w-8 text-destructive"
                         onClick={() => removeItem(item.id)}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
                       </Button>
                     </div>
                   </div>
@@ -439,36 +443,36 @@ export default function POS() {
               )}
             </div>
 
-            <div className="space-y-3 border-t pt-4">
-              <div className="flex justify-between text-sm">
+            <div className="space-y-2 md:space-y-3 border-t pt-3 md:pt-4">
+              <div className="flex justify-between text-xs md:text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">${subtotal.toFixed(2)}</span>
               </div>
               {totalDiscounts > 0 && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-success">Descuentos</span>
                   <span className="font-medium text-success">-${totalDiscounts.toFixed(2)}</span>
                 </div>
               )}
               {taxRate > 0 && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-muted-foreground">
                     IVA ({(taxRate * 100).toFixed(0)}%)
                   </span>
                   <span className="font-medium">${tax.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xl font-bold pt-2 border-t">
+              <div className="flex justify-between text-lg md:text-xl font-bold pt-2 border-t">
                 <span>Total</span>
                 <span className="text-success">${total.toFixed(2)}</span>
               </div>
               <Button
-                className="w-full bg-gradient-success hover:opacity-90"
+                className="w-full bg-gradient-success hover:opacity-90 text-sm md:text-base"
                 size="lg"
                 onClick={handleCheckout}
                 disabled={cart.length === 0}
               >
-                <CreditCard className="w-5 h-5 mr-2" />
+                <CreditCard className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Cobrar
               </Button>
             </div>
