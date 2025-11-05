@@ -13,6 +13,23 @@ interface ExcelImportProps {
 export function ExcelImport({ onImport }: ExcelImportProps) {
   const [open, setOpen] = useState(false);
 
+  // Parse números en formato CLP (admite $, puntos de miles y coma decimal)
+  const parseCLPNumber = (value: any): number => {
+    if (value === null || value === undefined) return NaN;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') return NaN;
+      const normalized = trimmed
+        .replace(/[$\s]/g, '')
+        .replace(/\./g, '')
+        .replace(/,/g, '.');
+      const num = Number(normalized);
+      return Number.isFinite(num) ? num : NaN;
+    }
+    return NaN;
+  };
+
   const downloadTemplate = () => {
     const template = [
       {
@@ -65,20 +82,28 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
               return;
             }
 
-            const stock = Number(row.stock);
-            const price = Number(row.precio || row.price);
-            const cost = Number(row.costo || row.cost);
+            const stockRaw = row.stock;
+            const priceRaw = (row.precio ?? row.price);
+            const costRaw = (row.costo ?? row.cost);
+
+            const stock = parseCLPNumber(stockRaw);
+            const price = parseCLPNumber(priceRaw);
+            const cost = parseCLPNumber(costRaw);
 
             if (isNaN(stock)) {
-              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El stock "${row.stock}" no es un número válido`);
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): Stock inválido "${row.stock}"`);
+              return;
+            }
+            if (!Number.isInteger(stock)) {
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): Stock debe ser entero (valor: "${row.stock}")`);
               return;
             }
             if (isNaN(price)) {
-              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El precio "${row.precio || row.price}" no es un número válido`);
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): Precio inválido "${row.precio ?? row.price}" (CLP)`);
               return;
             }
             if (isNaN(cost)) {
-              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El costo "${row.costo || row.cost}" no es un número válido`);
+              errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): Costo inválido "${row.costo ?? row.cost}" (CLP)`);
               return;
             }
 
@@ -92,15 +117,21 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
             };
 
             if (row.promo_tipo) {
-              const promoQuantity = Number(row.promo_cantidad);
-              const promoPrice = Number(row.promo_precio);
+              const promoQuantityRaw = row.promo_cantidad;
+              const promoPriceRaw = row.promo_precio;
+              const promoQuantity = parseCLPNumber(promoQuantityRaw);
+              const promoPrice = parseCLPNumber(promoPriceRaw);
 
               if (isNaN(promoQuantity)) {
-                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): La cantidad de promoción "${row.promo_cantidad}" no es válida`);
+                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): promo_cantidad inválida "${row.promo_cantidad}"`);
+                return;
+              }
+              if (!Number.isInteger(promoQuantity)) {
+                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): promo_cantidad debe ser entero (valor: "${row.promo_cantidad}")`);
                 return;
               }
               if (isNaN(promoPrice)) {
-                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): El precio de promoción "${row.promo_precio}" no es válido`);
+                errors.push(`Fila ${rowNumber} (SKU: ${row.sku}): promo_precio inválido "${row.promo_precio}" (CLP)`);
                 return;
               }
 

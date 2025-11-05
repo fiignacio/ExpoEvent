@@ -148,16 +148,24 @@ export function useProducts() {
           };
 
           // Validar que los números sean válidos
-          if (isNaN(productData.stock)) {
-            errors.push(`Producto ${p.sku}: Stock inválido`);
+           if (isNaN(productData.stock)) {
+            errors.push(`Producto ${p.sku}: Stock inválido (valor: ${p.stock})`);
+            continue;
+          }
+          if (!Number.isInteger(productData.stock)) {
+            errors.push(`Producto ${p.sku}: Stock debe ser entero (valor: ${p.stock})`);
             continue;
           }
           if (isNaN(productData.price)) {
-            errors.push(`Producto ${p.sku}: Precio inválido`);
+            errors.push(`Producto ${p.sku}: Precio inválido (valor: ${p.price})`);
             continue;
           }
           if (isNaN(productData.cost)) {
-            errors.push(`Producto ${p.sku}: Costo inválido`);
+            errors.push(`Producto ${p.sku}: Costo inválido (valor: ${p.cost})`);
+            continue;
+          }
+          if (productData.promotion_quantity !== null && !Number.isInteger(productData.promotion_quantity)) {
+            errors.push(`Producto ${p.sku}: promo_cantidad debe ser entero (valor: ${p.promotion?.quantity})`);
             continue;
           }
 
