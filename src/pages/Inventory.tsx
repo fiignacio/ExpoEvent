@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Edit, Trash2, Package, Tag, Save } from "lucide-react";
+import { Search, Edit, Trash2, Package, Tag, Save, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export default function Inventory() {
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [editMode, setEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<string, Partial<Omit<Product, "id">>>>(new Map());
-  const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert, bulkUpdate } = useProducts();
+  const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert, bulkUpdate, refresh } = useProducts();
 
   const filteredInventory = products.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,37 +106,49 @@ export default function Inventory() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Inventario</h1>
-          <p className="text-muted-foreground mt-1">Gestiona tu catálogo de productos</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Inventario</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">Gestiona tu catálogo de productos</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={refresh}
+            title="Actualizar inventario"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           {editMode && (
             <>
               <Button 
                 variant="default"
                 onClick={handleSavePendingChanges}
                 disabled={pendingChanges.size === 0}
+                className="text-sm"
               >
-                <Save className="w-4 h-4 mr-2" />
-                Guardar Cambios ({pendingChanges.size})
+                <Save className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Guardar ({pendingChanges.size})</span>
               </Button>
               <Button 
                 variant="outline"
                 onClick={handleCancelChanges}
+                className="text-sm"
               >
-                Cancelar
+                <span className="hidden md:inline">Cancelar</span>
+                <span className="md:hidden">✕</span>
               </Button>
             </>
           )}
           <Button 
             variant={editMode ? "secondary" : "outline"}
             onClick={() => setEditMode(!editMode)}
+            className="text-sm"
           >
-            <Edit className="w-4 h-4 mr-2" />
-            {editMode ? "Modo Edición" : "Edición Rápida"}
+            <Edit className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">{editMode ? "Modo Edición" : "Edición Rápida"}</span>
           </Button>
           <ExcelImport onImport={handleBulkImport} />
           <ProductDialog 
@@ -148,45 +160,45 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-          <p className="text-sm text-muted-foreground">Total Productos</p>
-                <p className="text-2xl font-bold mt-1">{products.length}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Total Productos</p>
+                <p className="text-xl md:text-2xl font-bold mt-1">{products.length}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <Package className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+                <Package className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div>
-              <p className="text-sm text-muted-foreground">Valor Total</p>
-              <p className="text-2xl font-bold mt-1 text-success">
-                ${products.reduce((sum, item) => sum + (item.stock * item.cost), 0).toFixed(2)}
+              <p className="text-xs md:text-sm text-muted-foreground">Valor Total</p>
+              <p className="text-xl md:text-2xl font-bold mt-1 text-success">
+                ${products.reduce((sum, item) => sum + (item.stock * item.cost), 0).toLocaleString('es-CL')}
               </p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div>
-              <p className="text-sm text-muted-foreground">Stock Bajo</p>
-              <p className="text-2xl font-bold mt-1 text-destructive">
+              <p className="text-xs md:text-sm text-muted-foreground">Stock Bajo</p>
+              <p className="text-xl md:text-2xl font-bold mt-1 text-destructive">
                 {products.filter(item => item.stock < 10).length}
               </p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div>
-              <p className="text-sm text-muted-foreground">Categorías</p>
-              <p className="text-2xl font-bold mt-1">
+              <p className="text-xs md:text-sm text-muted-foreground">Categorías</p>
+              <p className="text-xl md:text-2xl font-bold mt-1">
                 {new Set(products.map(item => item.category)).size}
               </p>
             </div>
@@ -196,9 +208,9 @@ export default function Inventory() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Productos</CardTitle>
-            <div className="relative w-72">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <CardTitle className="text-lg md:text-xl">Lista de Productos</CardTitle>
+            <div className="relative w-full md:w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Buscar por nombre o SKU..."
@@ -209,19 +221,19 @@ export default function Inventory() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Producto</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Costo</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Promoción</TableHead>
-                <TableHead>Margen</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="min-w-[150px]">Producto</TableHead>
+                <TableHead className="min-w-[100px]">SKU</TableHead>
+                <TableHead className="min-w-[120px]">Categoría</TableHead>
+                <TableHead className="min-w-[100px]">Stock</TableHead>
+                <TableHead className="min-w-[100px]">Costo</TableHead>
+                <TableHead className="min-w-[100px]">Precio</TableHead>
+                <TableHead className="min-w-[120px]">Promoción</TableHead>
+                <TableHead className="min-w-[80px]">Margen</TableHead>
+                <TableHead className="text-right min-w-[100px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
