@@ -1,7 +1,14 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, Package, Users } from "lucide-react";
+import { TrendingUp, DollarSign, Package, Users, Calendar, Eye } from "lucide-react";
+import { useCashSessions } from "@/hooks/useCashSessions";
+import { CashSessionDetail } from "@/components/CashSessionDetail";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const salesData = [
   { name: "Lun", ventas: 4500, transacciones: 45 },
@@ -28,6 +35,15 @@ const topProducts = [
 ];
 
 export default function Reports() {
+  const { sessions, loading } = useCashSessions();
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleViewSession = (session: any) => {
+    setSelectedSession(session);
+    setDetailOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -102,6 +118,7 @@ export default function Reports() {
           <TabsTrigger value="sales">Ventas</TabsTrigger>
           <TabsTrigger value="products">Productos</TabsTrigger>
           <TabsTrigger value="categories">Categorías</TabsTrigger>
+          <TabsTrigger value="sessions">Sesiones de Caja</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sales" className="space-y-4">
@@ -191,7 +208,105 @@ export default function Reports() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="sessions">
+          <Card>
+            <CardHeader>
+              <CardTitle>Historial de Sesiones de Caja</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Cargando sesiones...
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay sesiones de caja registradas
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((session) => {
+                    const difference = session.final_amount 
+                      ? session.final_amount - session.initial_amount 
+                      : 0;
+                    
+                    return (
+                      <Card key={session.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <Badge 
+                                  variant={session.status === 'open' ? 'default' : 'secondary'}
+                                  className="capitalize"
+                                >
+                                  {session.status === 'open' ? 'Abierta' : 'Cerrada'}
+                                </Badge>
+                                <span className="font-medium">
+                                  {session.profiles?.full_name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {format(new Date(session.opened_at), "PPP", { locale: es })}
+                                </div>
+                                <span>
+                                  {format(new Date(session.opened_at), "HH:mm", { locale: es })}
+                                  {session.closed_at && ` - ${format(new Date(session.closed_at), "HH:mm", { locale: es })}`}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-6">
+                              <div className="text-right">
+                                <div className="text-sm text-muted-foreground">Inicial</div>
+                                <div className="font-semibold">${session.initial_amount.toFixed(2)}</div>
+                              </div>
+                              
+                              {session.status === 'closed' && (
+                                <>
+                                  <div className="text-right">
+                                    <div className="text-sm text-muted-foreground">Final</div>
+                                    <div className="font-semibold">${session.final_amount?.toFixed(2)}</div>
+                                  </div>
+                                  
+                                  <div className="text-right">
+                                    <div className="text-sm text-muted-foreground">Diferencia</div>
+                                    <div className={`font-bold ${difference >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                      ${Math.abs(difference).toFixed(2)} {difference >= 0 ? '(+)' : '(-)'}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewSession(session)}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Ver Detalle
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <CashSessionDetail
+        sessionId={selectedSession?.id}
+        sessionData={selectedSession}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }
