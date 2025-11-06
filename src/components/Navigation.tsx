@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -14,24 +15,45 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
-  { name: "Dashboard", path: "/", icon: LayoutDashboard, adminOnly: false },
-  { name: "Punto de Venta", path: "/pos", icon: ShoppingCart, adminOnly: false },
-  { name: "Inventario", path: "/inventory", icon: Package, adminOnly: false },
-  { name: "Clientes", path: "/customers", icon: Users, adminOnly: false },
-  { name: "Reportes", path: "/reports", icon: FileText, adminOnly: false },
-  { name: "Configuración", path: "/settings", icon: Settings, adminOnly: true },
-  { name: "Usuarios", path: "/users", icon: Shield, adminOnly: true },
-  { name: "Códigos de Acceso", path: "/access-codes", icon: KeyRound, adminOnly: true },
+  { name: "Dashboard", path: "/", icon: LayoutDashboard, key: "dashboard" },
+  { name: "Punto de Venta", path: "/pos", icon: ShoppingCart, key: "pos" },
+  { name: "Inventario", path: "/inventory", icon: Package, key: "inventory" },
+  { name: "Clientes", path: "/customers", icon: Users, key: "customers" },
+  { name: "Reportes", path: "/reports", icon: FileText, key: "reports" },
+  { name: "Configuración", path: "/settings", icon: Settings, key: "settings" },
+  { name: "Usuarios", path: "/users", icon: Shield, key: "users" },
+  { name: "Códigos de Acceso", path: "/access-codes", icon: KeyRound, key: "access_codes" },
 ];
 
 export const Navigation = () => {
   const location = useLocation();
   const { profile, role, signOut } = useAuth();
+  const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      if (!role) return;
+
+      const { data } = await supabase
+        .from('role_permissions')
+        .select('menu_item, enabled')
+        .eq('role', role);
+
+      const permsMap: Record<string, boolean> = {};
+      data?.forEach(perm => {
+        permsMap[perm.menu_item] = perm.enabled;
+      });
+      setPermissions(permsMap);
+    };
+
+    fetchPermissions();
+  }, [role]);
 
   const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || role === "admin"
+    (item) => permissions[item.key] === true
   );
 
   // Mobile: mostrar solo iconos en barra inferior
