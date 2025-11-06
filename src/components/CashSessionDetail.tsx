@@ -22,6 +22,7 @@ interface Sale {
   tax: number;
   items: any[];
   created_at: string;
+  change_amount?: number;
 }
 
 interface CashSessionDetailProps {
@@ -207,6 +208,11 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                                 {format(new Date(sale.created_at), "HH:mm", { locale: es })}
                               </span>
                             </div>
+                            {sale.payment_method.toLowerCase() === 'efectivo' && sale.change_amount && sale.change_amount > 0 && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Vuelto entregado: ${sale.change_amount.toFixed(2)}
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-success">

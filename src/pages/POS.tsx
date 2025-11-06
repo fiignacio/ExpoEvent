@@ -293,12 +293,15 @@ export default function POS() {
   };
 
   const processPayment = async () => {
+    let changeAmount = 0;
+    
     if (paymentMethod === "efectivo") {
       const received = parseFloat(receivedAmount);
       if (!received || received < total) {
         toast.error("El monto recibido es insuficiente");
         return;
       }
+      changeAmount = received - total;
     }
 
     try {
@@ -310,7 +313,8 @@ export default function POS() {
           subtotal: subtotalAfterDiscounts,
           tax,
           total,
-          paymentMethod
+          paymentMethod,
+          changeAmount
         });
 
         // Actualizar stock localmente
@@ -322,9 +326,7 @@ export default function POS() {
         });
 
         if (paymentMethod === "efectivo") {
-          const received = parseFloat(receivedAmount);
-          const change = received - total;
-          toast.success(`Venta guardada (offline). Cambio: $${change.toFixed(2)}`);
+          toast.success(`Venta guardada (offline). Cambio: $${changeAmount.toFixed(2)}`);
         } else {
           toast.success("Venta guardada para sincronización");
         }
@@ -357,6 +359,7 @@ export default function POS() {
             tax,
             total,
             payment_method: paymentMethod,
+            change_amount: changeAmount,
             synced: true,
             synced_at: new Date().toISOString()
           }]);
@@ -364,9 +367,7 @@ export default function POS() {
         if (saleError) throw saleError;
 
         if (paymentMethod === "efectivo") {
-          const received = parseFloat(receivedAmount);
-          const change = received - total;
-          toast.success(`Venta procesada. Cambio: $${change.toFixed(2)}`);
+          toast.success(`Venta procesada. Cambio: $${changeAmount.toFixed(2)}`);
         } else {
           const methodNames = {
             debito: "Tarjeta de Débito",
@@ -514,8 +515,8 @@ export default function POS() {
           <CardHeader className="pb-3 md:pb-6">
             <CardTitle className="text-lg md:text-xl">Carrito de Compra</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col px-3 md:px-6">
-            <div className="flex-1 overflow-auto space-y-2 md:space-y-3 mb-4 md:mb-6">
+          <CardContent className="flex-1 flex flex-col px-3 md:px-6 pb-3 md:pb-6">
+            <div className="flex-1 overflow-auto space-y-2 md:space-y-3 mb-3 md:mb-4 max-h-[calc(100vh-28rem)] md:max-h-[calc(100vh-24rem)]">
               {cart.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <p className="text-muted-foreground text-center text-sm md:text-base">
@@ -586,7 +587,7 @@ export default function POS() {
               )}
             </div>
 
-            <div className="space-y-2 md:space-y-3 border-t pt-3 md:pt-4">
+            <div className="space-y-2 md:space-y-3 border-t pt-3 md:pt-4 bg-card sticky bottom-0">
               <div className="flex justify-between text-xs md:text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">${subtotal.toFixed(2)}</span>

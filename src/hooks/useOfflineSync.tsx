@@ -12,6 +12,7 @@ interface OfflineSale {
   tax: number;
   total: number;
   paymentMethod: string;
+  changeAmount?: number;
   timestamp: number;
 }
 
@@ -99,6 +100,7 @@ export function useOfflineSync() {
             tax: sale.tax,
             total: sale.total,
             payment_method: sale.paymentMethod,
+            change_amount: sale.changeAmount || 0,
             synced: true,
             synced_at: new Date().toISOString()
           }]);
