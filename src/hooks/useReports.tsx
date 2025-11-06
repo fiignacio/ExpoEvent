@@ -183,12 +183,22 @@ export function useReports(days: number = 7) {
       // Fetch sessions for the day
       const { data: sessions, error: sessionsError } = await supabase
         .from('cash_register_sessions')
-        .select('*, profiles(full_name)')
+        .select('*')
         .gte('opened_at', startDate.toISOString())
         .lte('opened_at', endDate.toISOString())
         .order('opened_at', { ascending: false });
 
       if (sessionsError) throw sessionsError;
+
+      // Fetch user profiles separately
+      const userIds = [...new Set(sessions?.map(s => s.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+
+      // Create a map of user_id to full_name
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
 
       // Fetch sales for the day
       const { data: sales, error: salesError } = await supabase
@@ -218,6 +228,12 @@ export function useReports(days: number = 7) {
         else if (method === 'transferencia') transferTotal += sale.total;
       });
 
+      // Enrich sessions with user names
+      const enrichedSessions = sessions?.map(session => ({
+        ...session,
+        profiles: { full_name: profileMap.get(session.user_id) || 'Usuario Desconocido' }
+      })) || [];
+
       return {
         sessionCount: sessions?.length || 0,
         totalSales,
@@ -227,7 +243,7 @@ export function useReports(days: number = 7) {
         creditTotal,
         transferTotal,
         totalChange,
-        sessions: sessions || []
+        sessions: enrichedSessions
       };
     } catch (error: any) {
       console.error("Error fetching Z report:", error);
