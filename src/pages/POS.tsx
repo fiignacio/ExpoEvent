@@ -366,6 +366,70 @@ export default function POS() {
 
         if (saleError) throw saleError;
 
+        // Generar transacciones automáticas para proveedores
+        const productIds = cart.map(item => item.id);
+        
+        // Obtener productos vinculados a proveedores
+        const { data: customerProducts, error: cpError } = await supabase
+          .from('customer_products')
+          .select(`
+            *,
+            customer:customers(id, name, type)
+          `)
+          .in('product_id', productIds);
+
+        if (cpError) {
+          console.error("Error fetching customer products:", cpError);
+        }
+
+        // Crear transacciones de deuda para cada proveedor
+        if (customerProducts && customerProducts.length > 0) {
+          const supplierDebts = new Map<string, { amount: number; description: string }>();
+
+          cart.forEach(item => {
+            const linkedProduct = customerProducts.find(
+              (cp: any) => cp.product_id === item.id && cp.customer.type === 'supplier'
+            );
+
+            if (linkedProduct) {
+              const supplierId = linkedProduct.customer_id;
+              const supplierPrice = Number(linkedProduct.price);
+              const itemTotal = supplierPrice * item.quantity;
+
+              if (supplierDebts.has(supplierId)) {
+                const current = supplierDebts.get(supplierId)!;
+                current.amount += itemTotal;
+                current.description += `, ${item.quantity}x ${item.name}`;
+              } else {
+                supplierDebts.set(supplierId, {
+                  amount: itemTotal,
+                  description: `Venta: ${item.quantity}x ${item.name}`
+                });
+              }
+            }
+          });
+
+          // Insertar las transacciones de deuda
+          const debtTransactions = Array.from(supplierDebts.entries()).map(([customerId, data]) => ({
+            customer_id: customerId,
+            type: 'debt',
+            amount: data.amount,
+            description: data.description,
+            status: 'pending',
+            created_by: user?.id
+          }));
+
+          if (debtTransactions.length > 0) {
+            const { error: debtError } = await supabase
+              .from('customer_transactions')
+              .insert(debtTransactions);
+
+            if (debtError) {
+              console.error("Error creating supplier debts:", debtError);
+            }
+          }
+        }
+
         if (paymentMethod === "efectivo") {
           toast.success(`Venta procesada. Cambio: $${changeAmount.toFixed(2)}`);
         } else {
