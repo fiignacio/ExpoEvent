@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, DollarSign, Package, Receipt } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X } from "lucide-react";
 import {
   useCustomers,
   useCustomerProducts,
@@ -301,7 +302,7 @@ function CustomerDetail({
   allProducts: any[];
 }) {
   const { products, addProduct, removeProduct } = useCustomerProducts(customer.id);
-  const { transactions, addTransaction, markAsPaid, getBalance } =
+  const { transactions, addTransaction, markAsPaid, markMultipleAsPaid, getBalance } =
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
@@ -310,6 +311,9 @@ function CustomerDetail({
   const [transactionAmount, setTransactionAmount] = useState("");
   const [transactionDescription, setTransactionDescription] = useState("");
   const [transactionType, setTransactionType] = useState<"debt" | "payment">("debt");
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,8 +332,52 @@ function CustomerDetail({
   };
 
   const balance = getBalance();
-  const pendingTransactions = transactions.filter((t) => t.status === "pending");
+  
+  const filteredPendingTransactions = transactions.filter((t) => {
+    if (t.status !== "pending") return false;
+    if (!startDate && !endDate) return true;
+    
+    const transactionDate = new Date(t.created_at);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    
+    if (start && end) {
+      return transactionDate >= start && transactionDate <= end;
+    } else if (start) {
+      return transactionDate >= start;
+    } else if (end) {
+      return transactionDate <= end;
+    }
+    return true;
+  });
+  
   const paidTransactions = transactions.filter((t) => t.status === "paid");
+
+  const handleSelectTransaction = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedTransactions([...selectedTransactions, id]);
+    } else {
+      setSelectedTransactions(selectedTransactions.filter((tid) => tid !== id));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedTransactions(filteredPendingTransactions.map((t) => t.id));
+    } else {
+      setSelectedTransactions([]);
+    }
+  };
+
+  const handlePaySelected = async () => {
+    if (selectedTransactions.length === 0) return;
+    await markMultipleAsPaid(selectedTransactions);
+    setSelectedTransactions([]);
+  };
+
+  const selectedTotal = filteredPendingTransactions
+    .filter((t) => selectedTransactions.includes(t.id))
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   return (
     <Card>
@@ -447,156 +495,270 @@ function CustomerDetail({
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold">Balance actual</h3>
-                <p className={`text-2xl font-bold ${balance > 0 ? "text-red-500" : "text-green-500"}`}>
-                  ${balance.toFixed(2)}
-                </p>
-              </div>
-              <Dialog
-                open={transactionDialogOpen}
-                onOpenChange={setTransactionDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Nueva Transacción
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Nueva Transacción</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddTransaction} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Tipo</Label>
-                      <Select
-                        value={transactionType}
-                        onValueChange={(value: "debt" | "payment") =>
-                          setTransactionType(value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="debt">Deuda</SelectItem>
-                          <SelectItem value="payment">Pago</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Monto</Label>
+            <Card className="bg-muted/50">
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Balance Pendiente</h3>
+                    <p className={`text-3xl font-bold ${balance > 0 ? "text-destructive" : "text-green-500"}`}>
+                      ${balance.toFixed(2)}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {filteredPendingTransactions.length} transacciones pendientes
+                    </p>
+                  </div>
+                  <div className="flex gap-2 items-start">
+                    <Dialog
+                      open={transactionDialogOpen}
+                      onOpenChange={setTransactionDialogOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button size="sm">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Nueva Transacción
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Nueva Transacción</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleAddTransaction} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Tipo</Label>
+                            <Select
+                              value={transactionType}
+                              onValueChange={(value: "debt" | "payment") =>
+                                setTransactionType(value)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="debt">Deuda</SelectItem>
+                                <SelectItem value="payment">Pago</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Monto</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={transactionAmount}
+                              onChange={(e) => setTransactionAmount(e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Descripción</Label>
+                            <Textarea
+                              value={transactionDescription}
+                              onChange={(e) => setTransactionDescription(e.target.value)}
+                              rows={3}
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setTransactionDialogOpen(false)}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button type="submit">Registrar</Button>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row justify-between gap-4">
+                  <CardTitle>Transacciones Pendientes</CardTitle>
+                  <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2 items-center">
+                      <Calendar className="w-4 h-4" />
                       <Input
-                        type="number"
-                        step="0.01"
-                        value={transactionAmount}
-                        onChange={(e) => setTransactionAmount(e.target.value)}
-                        required
+                        type="date"
+                        placeholder="Desde"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-36"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Descripción</Label>
-                      <Textarea
-                        value={transactionDescription}
-                        onChange={(e) => setTransactionDescription(e.target.value)}
-                        rows={3}
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="date"
+                        placeholder="Hasta"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-36"
                       />
+                      {(startDate || endDate) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setStartDate("");
+                            setEndDate("");
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
-                    <div className="flex gap-2 justify-end">
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {selectedTransactions.length > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
+                    <div>
+                      <p className="font-semibold">
+                        {selectedTransactions.length} transacciones seleccionadas
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Total: ${selectedTotal.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
                       <Button
-                        type="button"
                         variant="outline"
-                        onClick={() => setTransactionDialogOpen(false)}
+                        size="sm"
+                        onClick={() => setSelectedTransactions([])}
                       >
                         Cancelar
                       </Button>
-                      <Button type="submit">Registrar</Button>
+                      <Button
+                        size="sm"
+                        onClick={handlePaySelected}
+                      >
+                        <CheckSquare className="w-4 h-4 mr-2" />
+                        Marcar como Pagado
+                      </Button>
                     </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">Pendientes</h4>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>
-                        {new Date(transaction.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={transaction.type === "debt" ? "destructive" : "default"}
-                        >
-                          {transaction.type === "debt" ? "Deuda" : "Pago"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>${Number(transaction.amount).toFixed(2)}</TableCell>
-                      <TableCell>{transaction.description || "-"}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          onClick={() => markAsPaid(transaction.id)}
-                        >
-                          Marcar como Pagado
-                        </Button>
-                      </TableCell>
+                  </div>
+                )}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedTransactions.length === filteredPendingTransactions.length && filteredPendingTransactions.length > 0}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead>Monto</TableHead>
+                      <TableHead>Acción</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPendingTransactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No hay transacciones pendientes
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPendingTransactions.map((transaction) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedTransactions.includes(transaction.id)}
+                              onCheckedChange={(checked) =>
+                                handleSelectTransaction(transaction.id, checked as boolean)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {new Date(transaction.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                transaction.type === "debt" ? "destructive" : "default"
+                              }
+                            >
+                              {transaction.type === "debt" ? "Deuda" : "Pago"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{transaction.description || "-"}</TableCell>
+                          <TableCell className="font-semibold">
+                            ${Number(transaction.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => markAsPaid(transaction.id)}
+                            >
+                              Marcar Pagado
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
-            <div>
-              <h4 className="font-semibold mb-2">Historial</h4>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Pagado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paidTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>
-                        {new Date(transaction.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={transaction.type === "debt" ? "destructive" : "default"}
-                        >
-                          {transaction.type === "debt" ? "Deuda" : "Pago"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>${Number(transaction.amount).toFixed(2)}</TableCell>
-                      <TableCell>{transaction.description || "-"}</TableCell>
-                      <TableCell>
-                        {transaction.paid_at
-                          ? new Date(transaction.paid_at).toLocaleDateString()
-                          : "-"}
-                      </TableCell>
+            <Card>
+              <CardHeader>
+                <CardTitle>Historial de Pagos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha Creación</TableHead>
+                      <TableHead>Fecha Pago</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead>Monto</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {paidTransactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No hay pagos registrados
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paidTransactions.map((transaction) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell>
+                            {new Date(transaction.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {transaction.paid_at
+                              ? new Date(transaction.paid_at).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {transaction.type === "debt" ? "Deuda" : "Pago"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{transaction.description || "-"}</TableCell>
+                          <TableCell className="font-semibold">
+                            ${Number(transaction.amount).toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -605,14 +767,10 @@ function CustomerDetail({
 }
 
 function DebtsSummary({ customers }: { customers: Customer[] }) {
-  const [debts, setDebts] = useState<
-    Array<{ customer: Customer; balance: number; pending: number }>
-  >([]);
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Resumen de Deudas Pendientes</CardTitle>
+        <CardTitle>Resumen de Deudas</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -621,7 +779,7 @@ function DebtsSummary({ customers }: { customers: Customer[] }) {
               <TableHead>Cliente/Proveedor</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Balance</TableHead>
-              <TableHead>Transacciones Pendientes</TableHead>
+              <TableHead>Pendientes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -638,7 +796,7 @@ function DebtsSummary({ customers }: { customers: Customer[] }) {
 function DebtRow({ customer }: { customer: Customer }) {
   const { getBalance, transactions } = useCustomerTransactions(customer.id);
   const balance = getBalance();
-  const pending = transactions.filter((t) => t.status === "pending").length;
+  const pendingCount = transactions.filter((t) => t.status === "pending").length;
 
   if (balance === 0) return null;
 
@@ -646,16 +804,16 @@ function DebtRow({ customer }: { customer: Customer }) {
     <TableRow>
       <TableCell className="font-medium">{customer.name}</TableCell>
       <TableCell>
-        <Badge variant={customer.type === "customer" ? "default" : "secondary"}>
+        <Badge
+          variant={customer.type === "customer" ? "default" : "secondary"}
+        >
           {customer.type === "customer" ? "Cliente" : "Proveedor"}
         </Badge>
       </TableCell>
-      <TableCell>
-        <span className={balance > 0 ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
-          ${balance.toFixed(2)}
-        </span>
+      <TableCell className={`font-semibold ${balance > 0 ? "text-destructive" : "text-green-500"}`}>
+        ${balance.toFixed(2)}
       </TableCell>
-      <TableCell>{pending}</TableCell>
+      <TableCell>{pendingCount}</TableCell>
     </TableRow>
   );
 }

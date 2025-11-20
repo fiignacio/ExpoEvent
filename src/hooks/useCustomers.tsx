@@ -342,6 +342,30 @@ export const useCustomerTransactions = (customerId?: string) => {
     }
   };
 
+  const markMultipleAsPaid = async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from("customer_transactions")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast({
+        title: "Pagos registrados",
+        description: `Se han marcado ${ids.length} transacciones como pagadas`,
+      });
+
+      await fetchTransactions();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getBalance = () => {
     return transactions.reduce((acc, transaction) => {
       if (transaction.status === "paid") return acc;
@@ -356,6 +380,7 @@ export const useCustomerTransactions = (customerId?: string) => {
     loading,
     addTransaction,
     markAsPaid,
+    markMultipleAsPaid,
     getBalance,
     refresh: fetchTransactions,
   };
