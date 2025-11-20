@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import POS from "./pages/POS";
 import Inventory from "./pages/Inventory";
 import Customers from "./pages/Customers";
+import CustomerDashboard from "./pages/CustomerDashboard";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -79,6 +80,7 @@ const AppRoutes = () => {
           <Route path="/pos" element={<ProtectedRoute><POS /></ProtectedRoute>} />
           <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
           <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+          <Route path="/customer-dashboard" element={<ProtectedRoute><CustomerDashboard /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/install" element={<ProtectedRoute><InstallPWA /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />

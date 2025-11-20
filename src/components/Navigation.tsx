@@ -11,6 +11,7 @@ import {
   Shield,
   LogOut,
   KeyRound,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const navItems = [
   { name: "Punto de Venta", path: "/pos", icon: ShoppingCart, key: "pos" },
   { name: "Inventario", path: "/inventory", icon: Package, key: "inventory" },
   { name: "Clientes", path: "/customers", icon: Users, key: "customers" },
+  { name: "Dashboard Clientes", path: "/customer-dashboard", icon: BarChart3, key: "customer_dashboard" },
   { name: "Reportes", path: "/reports", icon: FileText, key: "reports" },
   { name: "Configuración", path: "/settings", icon: Settings, key: "settings" },
   { name: "Usuarios", path: "/users", icon: Shield, key: "users" },
