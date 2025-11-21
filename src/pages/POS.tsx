@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +30,7 @@ import { useCashRegister } from "@/hooks/useCashRegister";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAuth } from "@/hooks/useAuth";
 import { useCashSessions } from "@/hooks/useCashSessions";
+import { useCustomers } from "@/hooks/useCustomers";
 import { OpenCashDialog } from "@/components/OpenCashDialog";
 import { CloseCashDialog } from "@/components/CloseCashDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +52,7 @@ export default function POS() {
   const { isOnline, isSyncing, pendingSales, addOfflineSale } = useOfflineSync();
   const { signOut, user } = useAuth();
   const { fetchSessionSales } = useCashSessions();
+  const { customers } = useCustomers();
   const [cartSessions, setCartSessions] = useState<CartSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,6 +61,7 @@ export default function POS() {
   const [showCloseCashDialog, setShowCloseCashDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [receivedAmount, setReceivedAmount] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [paymentMethodTotals, setPaymentMethodTotals] = useState({
     efectivo: 0,
     debito: 0,
@@ -290,6 +300,68 @@ export default function POS() {
       return;
     }
     setShowPaymentDialog(true);
+  };
+
+  const handlePendingSale = async () => {
+    if (cart.length === 0) {
+      toast.error("El carrito está vacío");
+      return;
+    }
+
+    if (!selectedCustomerId) {
+      toast.error("Selecciona un cliente para registrar la venta pendiente");
+      return;
+    }
+
+    try {
+      // Reducir stock de productos
+      for (const item of cart) {
+        const newStock = (item.stock || 0) - item.quantity;
+        
+        if (newStock < 0) {
+          toast.error(`Stock insuficiente para ${item.name}`);
+          return;
+        }
+
+        const { error } = await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.id);
+
+        if (error) throw error;
+      }
+
+      // Crear descripción detallada de la venta
+      const itemsDescription = cart
+        .map(item => `${item.quantity}x ${item.name} ($${item.price.toFixed(2)})`)
+        .join(", ");
+
+      // Registrar transacción de deuda
+      const { error: debtError } = await supabase
+        .from('customer_transactions')
+        .insert([{
+          customer_id: selectedCustomerId,
+          type: 'debt',
+          amount: total,
+          description: `Venta pendiente: ${itemsDescription}`,
+          status: 'pending',
+          created_by: user?.id
+        }]);
+
+      if (debtError) throw debtError;
+
+      toast.success("Venta pendiente registrada correctamente");
+      
+      // Limpiar carrito
+      setCart([]);
+      setSelectedCustomerId("");
+      
+      if (cartSessions.length > 1) {
+        closeCartSession(activeSessionId);
+      }
+    } catch (error: any) {
+      toast.error("Error al registrar la venta pendiente: " + error.message);
+    }
   };
 
   const processPayment = async () => {
@@ -674,15 +746,48 @@ export default function POS() {
                 <span>Total</span>
                 <span className="text-success">${total.toFixed(2)}</span>
               </div>
-              <Button
-                className="w-full bg-gradient-success hover:opacity-90 text-sm md:text-base"
-                size="lg"
-                onClick={handleCheckout}
-                disabled={cart.length === 0}
-              >
-                <CreditCard className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                Cobrar
-              </Button>
+              
+              {/* Selector de cliente */}
+              <div className="space-y-2">
+                <Label className="text-xs">Cliente (opcional para venta pendiente)</Label>
+                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                  <SelectTrigger className="text-xs md:text-sm">
+                    <SelectValue placeholder="Seleccionar cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.filter(c => c.type === "customer").map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex flex-col gap-2">
+                <Button
+                  className="w-full bg-gradient-success hover:opacity-90 text-sm md:text-base"
+                  size="lg"
+                  onClick={handleCheckout}
+                  disabled={cart.length === 0}
+                >
+                  <CreditCard className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                  Cobrar
+                </Button>
+                {selectedCustomerId && (
+                  <Button
+                    className="w-full text-sm md:text-base"
+                    size="lg"
+                    variant="outline"
+                    onClick={handlePendingSale}
+                    disabled={cart.length === 0}
+                  >
+                    <User className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                    Registrar Venta Pendiente
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
