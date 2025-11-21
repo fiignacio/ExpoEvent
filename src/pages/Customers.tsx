@@ -653,8 +653,8 @@ function CustomerDetail({
                         />
                       </TableHead>
                       <TableHead>Fecha</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Descripción</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Detalle</TableHead>
                       <TableHead>Monto</TableHead>
                       <TableHead>Acción</TableHead>
                     </TableRow>
@@ -667,43 +667,72 @@ function CustomerDetail({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredPendingTransactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedTransactions.includes(transaction.id)}
-                              onCheckedChange={(checked) =>
-                                handleSelectTransaction(transaction.id, checked as boolean)
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {new Date(transaction.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                transaction.type === "debt" ? "destructive" : "default"
-                              }
-                            >
-                              {transaction.type === "debt" ? "Deuda" : "Pago"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{transaction.description || "-"}</TableCell>
-                          <TableCell className="font-semibold">
-                            ${Number(transaction.amount).toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => markAsPaid(transaction.id)}
-                            >
-                              Marcar Pagado
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      filteredPendingTransactions.map((transaction) => {
+                        const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
+                        return (
+                          <TableRow key={transaction.id} className={isPendingSale ? "bg-warning/5" : ""}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedTransactions.includes(transaction.id)}
+                                onCheckedChange={(checked) =>
+                                  handleSelectTransaction(transaction.id, checked as boolean)
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="text-sm">
+                                  {new Date(transaction.created_at).toLocaleDateString()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(transaction.created_at).toLocaleTimeString()}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                {isPendingSale ? (
+                                  <>
+                                    <Badge variant="destructive" className="w-fit">
+                                      Venta Pendiente
+                                    </Badge>
+                                    <Badge variant="outline" className="w-fit text-xs">
+                                      Sin pagar
+                                    </Badge>
+                                  </>
+                                ) : (
+                                  <Badge
+                                    variant={
+                                      transaction.type === "debt" ? "destructive" : "default"
+                                    }
+                                  >
+                                    {transaction.type === "debt" ? "Deuda" : "Pago"}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="text-sm">
+                                {transaction.description || "-"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-destructive">
+                              ${Number(transaction.amount).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => markAsPaid(transaction.id)}
+                                className="whitespace-nowrap"
+                              >
+                                <CheckSquare className="w-4 h-4 mr-1" />
+                                Marcar Pagado
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -718,42 +747,89 @@ function CustomerDetail({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Fecha Creación</TableHead>
+                      <TableHead>Fecha Venta/Deuda</TableHead>
                       <TableHead>Fecha Pago</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Descripción</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Detalle</TableHead>
                       <TableHead>Monto</TableHead>
+                      <TableHead>Días hasta Pago</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paidTransactions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           No hay pagos registrados
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paidTransactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>
-                            {new Date(transaction.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {transaction.paid_at
-                              ? new Date(transaction.paid_at).toLocaleDateString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {transaction.type === "debt" ? "Deuda" : "Pago"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{transaction.description || "-"}</TableCell>
-                          <TableCell className="font-semibold">
-                            ${Number(transaction.amount).toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      paidTransactions.map((transaction) => {
+                        const createdDate = new Date(transaction.created_at);
+                        const paidDate = transaction.paid_at ? new Date(transaction.paid_at) : null;
+                        const daysToPay = paidDate 
+                          ? Math.ceil((paidDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+                          : 0;
+                        const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
+                        
+                        return (
+                          <TableRow key={transaction.id}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="text-sm">
+                                  {createdDate.toLocaleDateString()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {createdDate.toLocaleTimeString()}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {paidDate ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-semibold text-green-600">
+                                    {paidDate.toLocaleDateString()}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {paidDate.toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                {isPendingSale ? (
+                                  <Badge variant="outline" className="w-fit bg-green-50">
+                                    Venta Pagada
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline">
+                                    {transaction.type === "debt" ? "Deuda Pagada" : "Pago"}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="text-sm">
+                                {transaction.description || "-"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-600">
+                              ${Number(transaction.amount).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              {daysToPay > 0 ? (
+                                <Badge variant="secondary">
+                                  {daysToPay} {daysToPay === 1 ? "día" : "días"}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Mismo día</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
