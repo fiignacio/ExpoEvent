@@ -813,7 +813,7 @@ export default function POS() {
             <DrawerTrigger asChild>
               <Button 
                 size="lg"
-                className="fixed bottom-4 right-4 h-16 w-16 rounded-full shadow-lg z-50 bg-gradient-success hover:opacity-90"
+                className="fixed top-4 right-4 h-16 w-16 rounded-full shadow-lg z-50 bg-gradient-success hover:opacity-90"
               >
                 <div className="relative">
                   <ShoppingCart className="w-6 h-6" />
