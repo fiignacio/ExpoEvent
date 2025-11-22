@@ -371,6 +371,8 @@ export type Database = {
       }
       settings: {
         Row: {
+          allow_negative_stock: boolean | null
+          auto_print_receipt: boolean | null
           business_address: string | null
           business_email: string | null
           business_name: string
@@ -378,13 +380,17 @@ export type Database = {
           created_at: string
           currency: string
           currency_symbol: string
+          enable_promotions: boolean | null
           id: string
           low_stock_threshold: number
           receipt_footer: string | null
+          require_customer_info: boolean | null
           tax_rate: number
           updated_at: string
         }
         Insert: {
+          allow_negative_stock?: boolean | null
+          auto_print_receipt?: boolean | null
           business_address?: string | null
           business_email?: string | null
           business_name?: string
@@ -392,13 +398,17 @@ export type Database = {
           created_at?: string
           currency?: string
           currency_symbol?: string
+          enable_promotions?: boolean | null
           id?: string
           low_stock_threshold?: number
           receipt_footer?: string | null
+          require_customer_info?: boolean | null
           tax_rate?: number
           updated_at?: string
         }
         Update: {
+          allow_negative_stock?: boolean | null
+          auto_print_receipt?: boolean | null
           business_address?: string | null
           business_email?: string | null
           business_name?: string
@@ -406,9 +416,11 @@ export type Database = {
           created_at?: string
           currency?: string
           currency_symbol?: string
+          enable_promotions?: boolean | null
           id?: string
           low_stock_threshold?: number
           receipt_footer?: string | null
+          require_customer_info?: boolean | null
           tax_rate?: number
           updated_at?: string
         }

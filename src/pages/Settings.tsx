@@ -3,8 +3,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useSettings } from "@/hooks/useSettings";
-import { Store, DollarSign, Receipt, Package } from "lucide-react";
+import { Store, DollarSign, Receipt, Package, Settings as SettingsIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function Settings() {
@@ -19,6 +20,10 @@ export default function Settings() {
     currency_symbol: "$",
     receipt_footer: "",
     low_stock_threshold: 10,
+    allow_negative_stock: false,
+    auto_print_receipt: false,
+    require_customer_info: false,
+    enable_promotions: true,
   });
 
   useEffect(() => {
@@ -33,6 +38,10 @@ export default function Settings() {
         currency_symbol: settings.currency_symbol,
         receipt_footer: settings.receipt_footer || "",
         low_stock_threshold: settings.low_stock_threshold,
+        allow_negative_stock: settings.allow_negative_stock,
+        auto_print_receipt: settings.auto_print_receipt,
+        require_customer_info: settings.require_customer_info,
+        enable_promotions: settings.enable_promotions,
       });
     }
   }, [settings]);
@@ -42,7 +51,7 @@ export default function Settings() {
     updateSettings(formData);
   };
 
-  const handleChange = (field: string, value: string | number) => {
+  const handleChange = (field: string, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -204,6 +213,81 @@ export default function Settings() {
                 onChange={(e) => handleChange("receipt_footer", e.target.value)}
                 placeholder="Gracias por su compra..."
                 rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Opciones Avanzadas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <SettingsIcon className="h-5 w-5" />
+              Opciones Avanzadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="allow_negative_stock" className="text-base">
+                  Permitir Ventas sin Stock
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Permite realizar ventas aunque el producto tenga stock 0 o negativo
+                </p>
+              </div>
+              <Switch
+                id="allow_negative_stock"
+                checked={formData.allow_negative_stock}
+                onCheckedChange={(checked) => handleChange("allow_negative_stock", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto_print_receipt" className="text-base">
+                  Imprimir Recibo Automáticamente
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Imprime el recibo automáticamente después de completar una venta
+                </p>
+              </div>
+              <Switch
+                id="auto_print_receipt"
+                checked={formData.auto_print_receipt}
+                onCheckedChange={(checked) => handleChange("auto_print_receipt", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="require_customer_info" className="text-base">
+                  Requerir Información del Cliente
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Solicita información del cliente antes de completar una venta
+                </p>
+              </div>
+              <Switch
+                id="require_customer_info"
+                checked={formData.require_customer_info}
+                onCheckedChange={(checked) => handleChange("require_customer_info", checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="enable_promotions" className="text-base">
+                  Habilitar Sistema de Promociones
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Activa el sistema de descuentos y promociones en el punto de venta
+                </p>
+              </div>
+              <Switch
+                id="enable_promotions"
+                checked={formData.enable_promotions}
+                onCheckedChange={(checked) => handleChange("enable_promotions", checked)}
               />
             </div>
           </CardContent>
