@@ -13,6 +13,10 @@ export interface Settings {
   currency_symbol: string;
   receipt_footer: string | null;
   low_stock_threshold: number;
+  allow_negative_stock: boolean;
+  auto_print_receipt: boolean;
+  require_customer_info: boolean;
+  enable_promotions: boolean;
 }
 
 export const useSettings = () => {
