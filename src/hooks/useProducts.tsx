@@ -133,6 +133,12 @@ export function useProducts() {
       for (let i = 0; i < products.length; i++) {
         const p = products[i];
         try {
+          // Validar promotion_type - solo permitir valores válidos
+          const validPromotionTypes = ['bulk', 'percentage', 'fixed'];
+          const promotionType = p.promotion?.type && validPromotionTypes.includes(p.promotion.type) 
+            ? p.promotion.type 
+            : null;
+
           const productData = {
             sku: p.sku,
             name: p.name,
@@ -140,11 +146,11 @@ export function useProducts() {
             stock: Number(p.stock),
             price: Number(p.price),
             cost: Number(p.cost),
-            promotion_type: p.promotion?.type || null,
-            promotion_quantity: p.promotion?.quantity ? Number(p.promotion.quantity) : null,
-            promotion_discounted_price: p.promotion?.discountedPrice ? Number(p.promotion.discountedPrice) : null,
-            promotion_discount_percentage: p.promotion?.discountPercentage ? Number(p.promotion.discountPercentage) : null,
-            promotion_discount_amount: p.promotion?.discountAmount ? Number(p.promotion.discountAmount) : null,
+            promotion_type: promotionType,
+            promotion_quantity: promotionType && p.promotion?.quantity ? Number(p.promotion.quantity) : null,
+            promotion_discounted_price: promotionType && p.promotion?.discountedPrice ? Number(p.promotion.discountedPrice) : null,
+            promotion_discount_percentage: promotionType && p.promotion?.discountPercentage ? Number(p.promotion.discountPercentage) : null,
+            promotion_discount_amount: promotionType && p.promotion?.discountAmount ? Number(p.promotion.discountAmount) : null,
           };
 
           // Validar que los números sean válidos
