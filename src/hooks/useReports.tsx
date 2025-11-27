@@ -271,6 +271,7 @@ export function useReports(days: number = 7) {
     averageTicket,
     totalProductsSold,
     loading,
-    fetchZReport
+    fetchZReport,
+    refresh: fetchReportsData
   };
 }
