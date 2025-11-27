@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package } from "lucide-react";
+import { Search, Package, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Product {
   id: string;
@@ -33,6 +39,7 @@ interface BulkProductSelectorProps {
   existingProductIds: string[];
   onAddProducts: (products: SelectedProduct[]) => Promise<void>;
   onClose: () => void;
+  isSupplier?: boolean;
 }
 
 export function BulkProductSelector({
@@ -40,6 +47,7 @@ export function BulkProductSelector({
   existingProductIds,
   onAddProducts,
   onClose,
+  isSupplier = false,
 }: BulkProductSelectorProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -163,6 +171,16 @@ export function BulkProductSelector({
         </div>
       </div>
 
+      {/* Info banner for suppliers */}
+      {isSupplier && (
+        <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+          <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            El monto que ingreses es lo que el proveedor recibirá por cada venta de este producto. Se generará una deuda automáticamente al realizar ventas.
+          </p>
+        </div>
+      )}
+
       {/* Selection summary */}
       <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
         <div className="flex items-center gap-2">
@@ -215,17 +233,25 @@ export function BulkProductSelector({
                       <Badge variant="outline" className="text-xs">
                         {product.category}
                       </Badge>
+                      {isSupplier && (
+                        <span className="text-xs">PVP: ${product.price.toFixed(2)}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">$</span>
-                    <Input
-                      type="number"
-                      value={currentPrice}
-                      onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
-                      className="w-24 h-8"
-                      disabled={!isSelected}
-                    />
+                  <div className="flex flex-col items-end gap-1">
+                    {isSupplier && (
+                      <span className="text-xs text-muted-foreground">Monto por venta</span>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        value={currentPrice}
+                        onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
+                        className="w-24 h-8"
+                        disabled={!isSelected}
+                      />
+                    </div>
                   </div>
                 </div>
               );
