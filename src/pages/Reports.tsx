@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText } from "lucide-react";
+import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText, RefreshCw } from "lucide-react";
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export default function Reports() {
-  const { sessions, loading: sessionsLoading } = useCashSessions();
+  const { sessions, loading: sessionsLoading, fetchSessions } = useCashSessions();
   const { 
     salesData, 
     topProducts, 
@@ -22,13 +22,15 @@ export default function Reports() {
     averageTicket, 
     totalProductsSold,
     loading: reportsLoading,
-    fetchZReport 
+    fetchZReport,
+    refresh: refreshReports
   } = useReports(7);
   
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [zReportData, setZReportData] = useState<any>(null);
   const [loadingZReport, setLoadingZReport] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     loadTodayZReport();
@@ -41,6 +43,16 @@ export default function Reports() {
     setLoadingZReport(false);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      refreshReports(),
+      loadTodayZReport(),
+      fetchSessions()
+    ]);
+    setIsRefreshing(false);
+  };
+
   const handleViewSession = (session: any) => {
     setSelectedSession(session);
     setDetailOpen(true);
@@ -48,9 +60,19 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Reportes y Analytics</h1>
-        <p className="text-muted-foreground mt-1">Análisis detallado de tu negocio</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Reportes y Analytics</h1>
+          <p className="text-muted-foreground mt-1">Análisis detallado de tu negocio</p>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={handleRefresh} 
+          disabled={isRefreshing || reportsLoading}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Actualizar
+        </Button>
       </div>
 
       {reportsLoading ? (
