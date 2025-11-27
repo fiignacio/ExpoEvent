@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus } from "lucide-react";
 import {
   useCustomers,
   useCustomerProducts,
@@ -37,6 +37,7 @@ import {
   Customer,
 } from "@/hooks/useCustomers";
 import { useProducts } from "@/hooks/useProducts";
+import { BulkProductSelector } from "@/components/BulkProductSelector";
 
 export default function Customers() {
   const { customers, loading, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -301,13 +302,11 @@ function CustomerDetail({
   onClose: () => void;
   allProducts: any[];
 }) {
-  const { products, addProduct, removeProduct } = useCustomerProducts(customer.id);
+  const { products, addProduct, addMultipleProducts, removeProduct } = useCustomerProducts(customer.id);
   const { transactions, addTransaction, markAsPaid, markMultipleAsPaid, getBalance } =
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [productPrice, setProductPrice] = useState("");
   const [transactionAmount, setTransactionAmount] = useState("");
   const [transactionDescription, setTransactionDescription] = useState("");
   const [transactionType, setTransactionType] = useState<"debt" | "payment">("debt");
@@ -315,12 +314,10 @@ function CustomerDetail({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await addProduct(selectedProductId, Number(productPrice));
-    setProductDialogOpen(false);
-    setSelectedProductId("");
-    setProductPrice("");
+  const existingProductIds = products.map((p) => p.product_id);
+
+  const handleAddMultipleProducts = async (productsToAdd: { id: string; name: string; price: number }[]) => {
+    await addMultipleProducts(productsToAdd.map((p) => ({ id: p.id, price: p.price })));
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
@@ -413,54 +410,20 @@ function CustomerDetail({
               <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Vincular Producto
+                    <PackagePlus className="w-4 h-4 mr-2" />
+                    Vincular Productos
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle>Vincular Producto</DialogTitle>
+                    <DialogTitle>Vincular Productos</DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={handleAddProduct} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Producto</Label>
-                      <Select
-                        value={selectedProductId}
-                        onValueChange={setSelectedProductId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar producto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allProducts.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} - {product.sku}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Precio</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={productPrice}
-                        onChange={(e) => setProductPrice(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setProductDialogOpen(false)}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button type="submit">Vincular</Button>
-                    </div>
-                  </form>
+                  <BulkProductSelector
+                    products={allProducts}
+                    existingProductIds={existingProductIds}
+                    onAddProducts={handleAddMultipleProducts}
+                    onClose={() => setProductDialogOpen(false)}
+                  />
                 </DialogContent>
               </Dialog>
             </div>
