@@ -72,6 +72,7 @@ export default function POS() {
     credito: 0,
     transferencia: 0
   });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Cargar sesiones desde localStorage al iniciar
   useEffect(() => {
@@ -369,6 +370,8 @@ export default function POS() {
   };
 
   const processPayment = async () => {
+    if (isProcessing) return; // Prevenir doble clic
+    
     let changeAmount = 0;
     
     if (paymentMethod === "efectivo") {
@@ -380,6 +383,7 @@ export default function POS() {
       changeAmount = received - total;
     }
 
+    setIsProcessing(true);
     try {
       if (!isOnline) {
         // Modo offline: guardar venta para sincronización posterior
@@ -530,6 +534,8 @@ export default function POS() {
       setPaymentMethod("efectivo");
     } catch (error: any) {
       toast.error("Error al procesar la venta: " + error.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -905,8 +911,12 @@ export default function POS() {
               <Button variant="outline" onClick={() => setShowPaymentDialog(false)} className="flex-1">
                 Cancelar
               </Button>
-              <Button onClick={processPayment} className="flex-1 bg-gradient-success">
-                Confirmar Pago
+              <Button 
+                onClick={processPayment} 
+                className="flex-1 bg-gradient-success"
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Procesando..." : "Confirmar Pago"}
               </Button>
             </div>
           </div>

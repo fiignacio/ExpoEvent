@@ -8,11 +8,15 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useCashSessions } from "@/hooks/useCashSessions";
-import { DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown, Package } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown, Package, Trash2 } from "lucide-react";
 
 interface Sale {
   id: string;
@@ -34,8 +38,10 @@ interface CashSessionDetailProps {
 
 export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }: CashSessionDetailProps) {
   const { fetchSessionSales } = useCashSessions();
+  const { role } = useAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (sessionId && open) {
@@ -49,6 +55,27 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
     const data = await fetchSessionSales(sessionId);
     setSales(data);
     setLoading(false);
+  };
+
+  const handleDeleteSale = async (saleId: string) => {
+    if (!confirm("¿Estás seguro de eliminar esta venta? Esta acción no se puede deshacer.")) return;
+    
+    setDeletingId(saleId);
+    try {
+      const { error } = await supabase
+        .from('offline_sales')
+        .delete()
+        .eq('id', saleId);
+      
+      if (error) throw error;
+      
+      toast.success("Venta eliminada correctamente");
+      loadSales();
+    } catch (error: any) {
+      toast.error("Error al eliminar la venta: " + error.message);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const paymentMethodStats = sales.reduce((acc, sale) => {
@@ -214,10 +241,23 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                               </div>
                             )}
                           </div>
-                          <div className="text-right">
-                            <div className="text-xl font-bold text-success">
-                              ${sale.total.toFixed(2)}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-success">
+                                ${sale.total.toFixed(2)}
+                              </div>
                             </div>
+                            {role === 'admin' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeleteSale(sale.id)}
+                                disabled={deletingId === sale.id}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                         <div className="space-y-1">
