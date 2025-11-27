@@ -270,12 +270,37 @@ export const useCustomerProducts = (customerId?: string) => {
     }
   };
 
+  const updateProductPrice = async (id: string, price: number) => {
+    try {
+      const { error } = await supabase
+        .from("customer_products")
+        .update({ price })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Precio actualizado",
+        description: "El monto por venta se ha actualizado correctamente",
+      });
+
+      await fetchProducts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return {
     products,
     loading,
     addProduct,
     addMultipleProducts,
     removeProduct,
+    updateProductPrice,
     refresh: fetchProducts,
   };
 };

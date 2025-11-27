@@ -302,7 +302,7 @@ function CustomerDetail({
   onClose: () => void;
   allProducts: any[];
 }) {
-  const { products, addProduct, addMultipleProducts, removeProduct } = useCustomerProducts(customer.id);
+  const { products, addProduct, addMultipleProducts, removeProduct, updateProductPrice } = useCustomerProducts(customer.id);
   const { transactions, addTransaction, markAsPaid, markMultipleAsPaid, getBalance } =
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -571,6 +571,7 @@ function CustomerDetail({
                       existingProductIds={existingProductIds}
                       onAddProducts={handleAddMultipleProducts}
                       onClose={() => setProductDialogOpen(false)}
+                      isSupplier={customer.type === 'supplier'}
                     />
                   </DialogContent>
                 </Dialog>
@@ -581,7 +582,7 @@ function CustomerDetail({
                 <TableRow>
                   <TableHead>Producto</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Precio</TableHead>
+                  <TableHead>{customer.type === 'supplier' ? 'Monto por Venta' : 'Precio'}</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -597,7 +598,22 @@ function CustomerDetail({
                     <TableRow key={product.id}>
                       <TableCell>{product.product?.name}</TableCell>
                       <TableCell>{product.product?.sku}</TableCell>
-                      <TableCell>${Number(product.price).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <span>$</span>
+                          <Input
+                            type="number"
+                            className="w-24 h-8"
+                            defaultValue={Number(product.price)}
+                            onBlur={(e) => {
+                              const newPrice = Number(e.target.value);
+                              if (newPrice !== Number(product.price)) {
+                                updateProductPrice(product.id, newPrice);
+                              }
+                            }}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Button
                           size="sm"
