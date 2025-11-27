@@ -214,6 +214,38 @@ export const useCustomerProducts = (customerId?: string) => {
     }
   };
 
+  const addMultipleProducts = async (productsToAdd: { id: string; price: number; notes?: string }[]) => {
+    if (!customerId || productsToAdd.length === 0) return;
+
+    try {
+      const insertData = productsToAdd.map((p) => ({
+        customer_id: customerId,
+        product_id: p.id,
+        price: p.price,
+        notes: p.notes,
+      }));
+
+      const { error } = await supabase
+        .from("customer_products")
+        .insert(insertData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Productos vinculados",
+        description: `Se han vinculado ${productsToAdd.length} producto(s) correctamente`,
+      });
+
+      await fetchProducts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const removeProduct = async (id: string) => {
     try {
       const { error } = await supabase
@@ -242,6 +274,7 @@ export const useCustomerProducts = (customerId?: string) => {
     products,
     loading,
     addProduct,
+    addMultipleProducts,
     removeProduct,
     refresh: fetchProducts,
   };
