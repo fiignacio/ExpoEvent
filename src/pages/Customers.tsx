@@ -307,10 +307,12 @@ function CustomerDetail({
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const [debtFromProductsDialogOpen, setDebtFromProductsDialogOpen] = useState(false);
   const [transactionAmount, setTransactionAmount] = useState("");
   const [transactionDescription, setTransactionDescription] = useState("");
   const [transactionType, setTransactionType] = useState<"debt" | "payment">("debt");
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [selectedProductsForDebt, setSelectedProductsForDebt] = useState<Map<string, number>>(new Map());
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -326,6 +328,51 @@ function CustomerDetail({
     setTransactionDialogOpen(false);
     setTransactionAmount("");
     setTransactionDescription("");
+  };
+
+  const handleToggleProductForDebt = (productId: string, price: number, checked: boolean) => {
+    const newSelected = new Map(selectedProductsForDebt);
+    if (checked) {
+      newSelected.set(productId, price);
+    } else {
+      newSelected.delete(productId);
+    }
+    setSelectedProductsForDebt(newSelected);
+  };
+
+  const handleQuantityChange = (productId: string, price: number, quantity: number) => {
+    const newSelected = new Map(selectedProductsForDebt);
+    newSelected.set(productId, price * quantity);
+    setSelectedProductsForDebt(newSelected);
+  };
+
+  const handleSelectAllProductsForDebt = (checked: boolean) => {
+    if (checked) {
+      const newSelected = new Map<string, number>();
+      products.forEach((p) => {
+        newSelected.set(p.id, Number(p.price));
+      });
+      setSelectedProductsForDebt(newSelected);
+    } else {
+      setSelectedProductsForDebt(new Map());
+    }
+  };
+
+  const selectedProductsTotal = Array.from(selectedProductsForDebt.values()).reduce((sum, price) => sum + price, 0);
+
+  const handleCreateDebtFromProducts = async () => {
+    if (selectedProductsForDebt.size === 0) return;
+    
+    const productNames = products
+      .filter((p) => selectedProductsForDebt.has(p.id))
+      .map((p) => p.product?.name)
+      .join(", ");
+    
+    const description = `Deuda por productos: ${productNames}`;
+    await addTransaction("debt", selectedProductsTotal, description);
+    
+    setSelectedProductsForDebt(new Map());
+    setDebtFromProductsDialogOpen(false);
   };
 
   const balance = getBalance();
@@ -405,27 +452,129 @@ function CustomerDetail({
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-2">
               <h3 className="text-lg font-semibold">Productos vinculados</h3>
-              <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <PackagePlus className="w-4 h-4 mr-2" />
-                    Vincular Productos
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
-                  <DialogHeader>
-                    <DialogTitle>Vincular Productos</DialogTitle>
-                  </DialogHeader>
-                  <BulkProductSelector
-                    products={allProducts}
-                    existingProductIds={existingProductIds}
-                    onAddProducts={handleAddMultipleProducts}
-                    onClose={() => setProductDialogOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
+              <div className="flex gap-2">
+                <Dialog open={debtFromProductsDialogOpen} onOpenChange={setDebtFromProductsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={products.length === 0}>
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Registrar Deuda
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Registrar Deuda por Productos</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="select-all-products"
+                            checked={selectedProductsForDebt.size === products.length && products.length > 0}
+                            onCheckedChange={handleSelectAllProductsForDebt}
+                          />
+                          <Label htmlFor="select-all-products" className="text-sm cursor-pointer">
+                            Seleccionar todos ({products.length})
+                          </Label>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Total seleccionado:</p>
+                          <p className="font-bold text-lg">${selectedProductsTotal.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="max-h-[300px] overflow-auto border rounded-lg">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-12"></TableHead>
+                              <TableHead>Producto</TableHead>
+                              <TableHead>Precio Unit.</TableHead>
+                              <TableHead>Cantidad</TableHead>
+                              <TableHead>Subtotal</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {products.map((product) => {
+                              const isSelected = selectedProductsForDebt.has(product.id);
+                              const basePrice = Number(product.price);
+                              const currentTotal = selectedProductsForDebt.get(product.id) || basePrice;
+                              const quantity = Math.round(currentTotal / basePrice) || 1;
+                              
+                              return (
+                                <TableRow key={product.id}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) => 
+                                        handleToggleProductForDebt(product.id, basePrice, !!checked)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell>{product.product?.name}</TableCell>
+                                  <TableCell>${basePrice.toFixed(2)}</TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={isSelected ? quantity : 1}
+                                      onChange={(e) => 
+                                        handleQuantityChange(product.id, basePrice, Number(e.target.value) || 1)
+                                      }
+                                      className="w-20 h-8"
+                                      disabled={!isSelected}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">
+                                    ${isSelected ? currentTotal.toFixed(2) : basePrice.toFixed(2)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setDebtFromProductsDialogOpen(false);
+                            setSelectedProductsForDebt(new Map());
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={handleCreateDebtFromProducts}
+                          disabled={selectedProductsForDebt.size === 0}
+                        >
+                          Registrar Deuda de ${selectedProductsTotal.toFixed(2)}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <PackagePlus className="w-4 h-4 mr-2" />
+                      Vincular Productos
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+                    <DialogHeader>
+                      <DialogTitle>Vincular Productos</DialogTitle>
+                    </DialogHeader>
+                    <BulkProductSelector
+                      products={allProducts}
+                      existingProductIds={existingProductIds}
+                      onAddProducts={handleAddMultipleProducts}
+                      onClose={() => setProductDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
             <Table>
               <TableHeader>
@@ -437,22 +586,30 @@ function CustomerDetail({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>{product.product?.name}</TableCell>
-                    <TableCell>{product.product?.sku}</TableCell>
-                    <TableCell>${Number(product.price).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeProduct(product.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                {products.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No hay productos vinculados
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>{product.product?.name}</TableCell>
+                      <TableCell>{product.product?.sku}</TableCell>
+                      <TableCell>${Number(product.price).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeProduct(product.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </TabsContent>
