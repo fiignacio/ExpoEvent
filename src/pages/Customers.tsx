@@ -303,7 +303,7 @@ function CustomerDetail({
   allProducts: any[];
 }) {
   const { products, addProduct, addMultipleProducts, removeProduct, updateProductPrice } = useCustomerProducts(customer.id);
-  const { transactions, addTransaction, markAsPaid, markMultipleAsPaid, getBalance } =
+  const { transactions, addTransaction, markAsPaid, markMultipleAsPaid, deleteTransaction, deleteMultipleTransactions, getBalance } =
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
@@ -416,6 +416,12 @@ function CustomerDetail({
   const handlePaySelected = async () => {
     if (selectedTransactions.length === 0) return;
     await markMultipleAsPaid(selectedTransactions);
+    setSelectedTransactions([]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedTransactions.length === 0) return;
+    await deleteMultipleTransactions(selectedTransactions);
     setSelectedTransactions([]);
   };
 
@@ -771,6 +777,14 @@ function CustomerDetail({
                       </Button>
                       <Button
                         size="sm"
+                        variant="destructive"
+                        onClick={handleDeleteSelected}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Eliminar
+                      </Button>
+                      <Button
+                        size="sm"
                         onClick={handlePaySelected}
                       >
                         <CheckSquare className="w-4 h-4 mr-2" />
@@ -856,15 +870,24 @@ function CustomerDetail({
                               ${Number(transaction.amount).toFixed(2)}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => markAsPaid(transaction.id)}
-                                className="whitespace-nowrap"
-                              >
-                                <CheckSquare className="w-4 h-4 mr-1" />
-                                Marcar Pagado
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => markAsPaid(transaction.id)}
+                                  className="whitespace-nowrap"
+                                >
+                                  <CheckSquare className="w-4 h-4 mr-1" />
+                                  Pagado
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => deleteTransaction(transaction.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );

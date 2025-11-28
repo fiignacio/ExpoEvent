@@ -73,6 +73,60 @@ export default function POS() {
     transferencia: 0
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [customerPrices, setCustomerPrices] = useState<Map<string, number>>(new Map());
+
+  // Cargar precios del cliente cuando se seleccione uno
+  useEffect(() => {
+    const loadCustomerPrices = async () => {
+      if (!selectedCustomerId) {
+        setCustomerPrices(new Map());
+        return;
+      }
+      
+      // Verificar que el cliente seleccionado sea tipo "customer" (no "supplier")
+      const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+      if (!selectedCustomer || selectedCustomer.type !== "customer") {
+        setCustomerPrices(new Map());
+        return;
+      }
+      
+      const { data } = await supabase
+        .from("customer_products")
+        .select("product_id, price")
+        .eq("customer_id", selectedCustomerId);
+      
+      if (data) {
+        const pricesMap = new Map<string, number>();
+        data.forEach(item => pricesMap.set(item.product_id, Number(item.price)));
+        setCustomerPrices(pricesMap);
+      }
+    };
+    
+    loadCustomerPrices();
+  }, [selectedCustomerId, customers]);
+
+  // Actualizar carrito cuando cambien los precios del cliente
+  useEffect(() => {
+    if (cart.length > 0) {
+      const updatedCart = cart.map(item => {
+        const customerPrice = customerPrices.get(item.id);
+        if (customerPrices.size > 0 && customerPrice !== undefined) {
+          return {
+            ...item,
+            price: customerPrice,
+            isCustomerPrice: true
+          };
+        } else {
+          return {
+            ...item,
+            price: item.originalPrice,
+            isCustomerPrice: false
+          };
+        }
+      });
+      setCart(updatedCart);
+    }
+  }, [customerPrices]);
 
   // Cargar sesiones desde localStorage al iniciar
   useEffect(() => {
@@ -222,6 +276,10 @@ export default function POS() {
       return;
     }
 
+    // Obtener precio personalizado si existe (solo para clientes)
+    const customerPrice = customerPrices.get(product.id);
+    const finalPrice = customerPrice ?? product.price;
+
     if (existingItem) {
       const newCart = cart.map(item =>
         item.id === product.id
@@ -232,16 +290,24 @@ export default function POS() {
       checkPromotion(newCart, product.id);
     } else {
       const newItem: CartItem = { 
-        ...product, 
+        ...product,
+        price: finalPrice,
         quantity: 1,
         originalPrice: product.price,
-        appliedDiscount: 0
+        appliedDiscount: 0,
+        isCustomerPrice: customerPrice !== undefined
       };
       const newCart = [...cart, newItem];
       setCart(newCart);
       checkPromotion(newCart, product.id);
     }
-    toast.success(`${product.name} agregado al carrito`);
+    
+    // Mensaje diferente si aplica precio de cliente
+    if (customerPrice !== undefined && customerPrice !== product.price) {
+      toast.success(`${product.name} agregado con precio especial: $${finalPrice.toLocaleString()}`);
+    } else {
+      toast.success(`${product.name} agregado al carrito`);
+    }
   };
 
   const checkPromotion = (currentCart: CartItem[], productId: string) => {
@@ -559,8 +625,15 @@ export default function POS() {
             return (
             <div key={item.id} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg bg-accent">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 md:gap-2">
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
                   <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
+                  {item.isCustomerPrice && (
+                    <Badge variant="secondary" className="text-[10px] md:text-xs flex-shrink-0">
+                      <User className="w-2 h-2 md:w-3 md:h-3 mr-0.5" />
+                      <span className="hidden sm:inline">Precio cliente</span>
+                      <span className="sm:hidden">PC</span>
+                    </Badge>
+                  )}
                   {item.promotion && (
                     <Badge variant="outline" className="text-[10px] md:text-xs flex-shrink-0">
                       <span className="hidden sm:inline">{getPromotionLabel(item)}</span>
@@ -569,6 +642,9 @@ export default function POS() {
                   )}
                 </div>
                 <div className="flex items-center gap-1 md:gap-2">
+                  {item.isCustomerPrice && item.originalPrice !== item.price && (
+                    <p className="text-xs md:text-sm text-muted-foreground line-through">${item.originalPrice.toFixed(2)}</p>
+                  )}
                   <p className="text-xs md:text-sm text-muted-foreground">${item.price.toFixed(2)} c/u</p>
                   {itemDiscount > 0 && (
                     <p className="text-[10px] md:text-xs text-success font-semibold">
