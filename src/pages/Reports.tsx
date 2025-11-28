@@ -3,16 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText, RefreshCw } from "lucide-react";
+import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users } from "lucide-react";
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+
+type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "custom";
 
 export default function Reports() {
   const { sessions, loading: sessionsLoading, fetchSessions } = useCashSessions();
+  const [periodType, setPeriodType] = useState<PeriodType>("7days");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [activeDays, setActiveDays] = useState(7);
+  
   const { 
     salesData, 
     topProducts, 
@@ -24,17 +41,133 @@ export default function Reports() {
     loading: reportsLoading,
     fetchZReport,
     refresh: refreshReports
-  } = useReports(7);
+  } = useReports(activeDays);
   
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [zReportData, setZReportData] = useState<any>(null);
   const [loadingZReport, setLoadingZReport] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [supplierSalesData, setSupplierSalesData] = useState<any[]>([]);
+  const [loadingSupplierData, setLoadingSupplierData] = useState(false);
 
   useEffect(() => {
     loadTodayZReport();
+    fetchSupplierSales();
   }, []);
+
+  useEffect(() => {
+    // Update days based on period type
+    const today = new Date();
+    switch (periodType) {
+      case "7days":
+        setActiveDays(7);
+        break;
+      case "14days":
+        setActiveDays(14);
+        break;
+      case "30days":
+        setActiveDays(30);
+        break;
+      case "thisMonth":
+        const monthStart = startOfMonth(today);
+        const daysSinceMonthStart = Math.ceil((today.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        setActiveDays(daysSinceMonthStart);
+        break;
+      case "thisWeek":
+        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+        const daysSinceWeekStart = Math.ceil((today.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        setActiveDays(daysSinceWeekStart);
+        break;
+      case "custom":
+        if (customStartDate && customEndDate) {
+          const start = new Date(customStartDate);
+          const end = new Date(customEndDate);
+          const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          setActiveDays(daysDiff);
+        }
+        break;
+    }
+    fetchSupplierSales();
+  }, [periodType, customStartDate, customEndDate]);
+
+  const fetchSupplierSales = async () => {
+    setLoadingSupplierData(true);
+    try {
+      const today = new Date();
+      let startDate: Date;
+      let endDate = today;
+      
+      switch (periodType) {
+        case "thisMonth":
+          startDate = startOfMonth(today);
+          break;
+        case "thisWeek":
+          startDate = startOfWeek(today, { weekStartsOn: 1 });
+          break;
+        case "custom":
+          startDate = customStartDate ? new Date(customStartDate) : subDays(today, 7);
+          endDate = customEndDate ? new Date(customEndDate) : today;
+          break;
+        default:
+          startDate = subDays(today, activeDays - 1);
+      }
+
+      // Get suppliers with their linked products
+      const { data: suppliers, error: suppliersError } = await supabase
+        .from('customers')
+        .select(`
+          id,
+          name,
+          customer_products (
+            product_id,
+            price,
+            product:products (name, sku)
+          )
+        `)
+        .eq('type', 'supplier');
+
+      if (suppliersError) throw suppliersError;
+
+      // Get transactions for suppliers
+      const { data: transactions, error: txError } = await supabase
+        .from('customer_transactions')
+        .select('*')
+        .in('customer_id', suppliers?.map(s => s.id) || [])
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
+
+      if (txError) throw txError;
+
+      // Calculate totals per supplier
+      const supplierData = suppliers?.map(supplier => {
+        const supplierTx = transactions?.filter(tx => tx.customer_id === supplier.id) || [];
+        const totalDebt = supplierTx
+          .filter(tx => tx.type === 'debt' && tx.status === 'pending')
+          .reduce((sum, tx) => sum + Number(tx.amount), 0);
+        const totalPaid = supplierTx
+          .filter(tx => tx.status === 'paid')
+          .reduce((sum, tx) => sum + Number(tx.amount), 0);
+        const pendingCount = supplierTx.filter(tx => tx.status === 'pending').length;
+
+        return {
+          id: supplier.id,
+          name: supplier.name,
+          productsLinked: supplier.customer_products?.length || 0,
+          totalDebt,
+          totalPaid,
+          pendingCount,
+          transactions: supplierTx
+        };
+      }) || [];
+
+      setSupplierSalesData(supplierData.filter(s => s.totalDebt > 0 || s.totalPaid > 0 || s.productsLinked > 0));
+    } catch (error) {
+      console.error("Error fetching supplier sales:", error);
+    } finally {
+      setLoadingSupplierData(false);
+    }
+  };
 
   const loadTodayZReport = async () => {
     setLoadingZReport(true);
@@ -48,7 +181,8 @@ export default function Reports() {
     await Promise.all([
       refreshReports(),
       loadTodayZReport(),
-      fetchSessions()
+      fetchSessions(),
+      fetchSupplierSales()
     ]);
     setIsRefreshing(false);
   };
@@ -58,21 +192,65 @@ export default function Reports() {
     setDetailOpen(true);
   };
 
+  const getPeriodLabel = () => {
+    switch (periodType) {
+      case "7days": return "Últimos 7 días";
+      case "14days": return "Últimos 14 días";
+      case "30days": return "Últimos 30 días";
+      case "thisMonth": return "Este mes";
+      case "thisWeek": return "Esta semana";
+      case "custom": return "Personalizado";
+      default: return "Últimos 7 días";
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Reportes y Analytics</h1>
           <p className="text-muted-foreground mt-1">Análisis detallado de tu negocio</p>
         </div>
-        <Button 
-          variant="outline" 
-          onClick={handleRefresh} 
-          disabled={isRefreshing || reportsLoading}
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={periodType} onValueChange={(v: PeriodType) => setPeriodType(v)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="thisWeek">Esta semana</SelectItem>
+              <SelectItem value="7days">Últimos 7 días</SelectItem>
+              <SelectItem value="14days">Últimos 14 días</SelectItem>
+              <SelectItem value="thisMonth">Este mes</SelectItem>
+              <SelectItem value="30days">Últimos 30 días</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          {periodType === "custom" && (
+            <>
+              <Input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="w-36"
+              />
+              <span className="text-muted-foreground">-</span>
+              <Input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="w-36"
+              />
+            </>
+          )}
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing || reportsLoading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {reportsLoading ? (
@@ -97,7 +275,7 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-muted-foreground">Ventas Totales</p>
                   <p className="text-2xl font-bold text-success mt-1">${totalSales.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Últimos 7 días</p>
+                  <p className="text-xs text-muted-foreground mt-1">{getPeriodLabel()}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-gradient-success flex items-center justify-center">
                   <DollarSign className="w-6 h-6 text-white" />
@@ -112,7 +290,7 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-muted-foreground">Transacciones</p>
                   <p className="text-2xl font-bold mt-1">{totalTransactions}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Últimos 7 días</p>
+                  <p className="text-xs text-muted-foreground mt-1">{getPeriodLabel()}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-white" />
@@ -142,7 +320,7 @@ export default function Reports() {
                 <div>
                   <p className="text-sm text-muted-foreground">Productos Vendidos</p>
                   <p className="text-2xl font-bold mt-1">{totalProductsSold}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Últimos 7 días</p>
+                  <p className="text-xs text-muted-foreground mt-1">{getPeriodLabel()}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-gradient-subtle flex items-center justify-center">
                   <Package className="w-6 h-6 text-muted-foreground" />
@@ -154,11 +332,12 @@ export default function Reports() {
       )}
 
       <Tabs defaultValue="zreport" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="zreport">Cierre Z</TabsTrigger>
           <TabsTrigger value="sales">Ventas</TabsTrigger>
           <TabsTrigger value="products">Productos</TabsTrigger>
           <TabsTrigger value="categories">Categorías</TabsTrigger>
+          <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
           <TabsTrigger value="sessions">Sesiones de Caja</TabsTrigger>
         </TabsList>
 
@@ -429,6 +608,113 @@ export default function Reports() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="suppliers">
+          {loadingSupplierData ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-8 text-muted-foreground">
+                  Cargando datos de proveedores...
+                </div>
+              </CardContent>
+            </Card>
+          ) : supplierSalesData.length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay datos de proveedores disponibles
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Resumen de Proveedores - {getPeriodLabel()}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3 mb-6">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total por Pagar</p>
+                      <p className="text-2xl font-bold text-destructive">
+                        ${supplierSalesData.reduce((sum, s) => sum + s.totalDebt, 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total Pagado</p>
+                      <p className="text-2xl font-bold text-success">
+                        ${supplierSalesData.reduce((sum, s) => sum + s.totalPaid, 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Proveedores Activos</p>
+                      <p className="text-2xl font-bold">{supplierSalesData.length}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Proveedor</th>
+                          <th className="text-center p-3 font-medium">Productos</th>
+                          <th className="text-center p-3 font-medium">Transacciones</th>
+                          <th className="text-right p-3 font-medium">Por Pagar</th>
+                          <th className="text-right p-3 font-medium">Pagado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supplierSalesData.map((supplier) => (
+                          <tr key={supplier.id} className="border-t">
+                            <td className="p-3 font-medium">{supplier.name}</td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline">{supplier.productsLinked}</Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              {supplier.pendingCount > 0 ? (
+                                <Badge variant="destructive">{supplier.pendingCount} pendientes</Badge>
+                              ) : (
+                                <Badge variant="secondary">0</Badge>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-semibold text-destructive">
+                              ${supplier.totalDebt.toFixed(2)}
+                            </td>
+                            <td className="p-3 text-right font-semibold text-success">
+                              ${supplier.totalPaid.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Deuda por Proveedor</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={supplierSalesData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="totalDebt" fill="#ef4444" name="Por Pagar" />
+                      <Bar dataKey="totalPaid" fill="#10b981" name="Pagado" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
 
