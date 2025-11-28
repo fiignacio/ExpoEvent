@@ -21,4 +21,5 @@ export interface CartItem extends Product {
   quantity: number;
   appliedDiscount?: number;
   originalPrice: number;
+  isCustomerPrice?: boolean;
 }

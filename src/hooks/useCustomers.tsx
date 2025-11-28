@@ -433,12 +433,62 @@ export const useCustomerTransactions = (customerId?: string) => {
     }, 0);
   };
 
+  const deleteTransaction = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("customer_transactions")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Transacción eliminada",
+        description: "La transacción se ha eliminado correctamente",
+      });
+
+      await fetchTransactions();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteMultipleTransactions = async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from("customer_transactions")
+        .delete()
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast({
+        title: "Transacciones eliminadas",
+        description: `Se han eliminado ${ids.length} transacciones`,
+      });
+
+      await fetchTransactions();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return {
     transactions,
     loading,
     addTransaction,
     markAsPaid,
     markMultipleAsPaid,
+    deleteTransaction,
+    deleteMultipleTransactions,
     getBalance,
     refresh: fetchTransactions,
   };
