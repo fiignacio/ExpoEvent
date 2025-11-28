@@ -32,7 +32,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAuth } from "@/hooks/useAuth";
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile, useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { OpenCashDialog } from "@/components/OpenCashDialog";
 import { CloseCashDialog } from "@/components/CloseCashDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,7 @@ export default function POS() {
   const { fetchSessionSales } = useCashSessions();
   const { customers } = useCustomers();
   const isMobile = useIsMobile();
+  const isMobileOrTablet = useIsMobileOrTablet();
   const [cartSessions, setCartSessions] = useState<CartSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -889,7 +890,7 @@ export default function POS() {
     </div>
 
       {/* Cart Drawer - Mobile/Tablet only */}
-      {isMobile && (
+      {isMobileOrTablet && (
         <>
           <Drawer open={isCartDrawerOpen} onOpenChange={setIsCartDrawerOpen}>
             <DrawerTrigger asChild>
