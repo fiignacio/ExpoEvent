@@ -36,6 +36,7 @@ import { useIsMobile, useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { OpenCashDialog } from "@/components/OpenCashDialog";
 import { CloseCashDialog } from "@/components/CloseCashDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
 
@@ -864,11 +865,20 @@ export default function POS() {
                     <span className="sm:hidden">PROMO</span>
                   </Badge>
                 )}
-                <div className="aspect-square bg-gradient-subtle rounded-lg mb-2 md:mb-4 flex items-center justify-center">
-                  <Package className="w-8 h-8 md:w-12 md:h-12 text-muted-foreground" />
+              <div className="aspect-square bg-gradient-subtle rounded-lg mb-2 flex items-center justify-center h-12 md:h-16">
+                  <Package className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-sm md:text-lg line-clamp-2">{product.name}</h3>
-                <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2">{product.category}</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <h3 className="font-semibold text-xs md:text-sm leading-tight min-h-[2.5rem] md:min-h-[3rem] break-words cursor-default">{product.name}</h3>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[200px]">
+                      <p>{product.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <p className="text-[10px] md:text-xs text-muted-foreground mb-1">{product.category}</p>
                 <p className="text-base md:text-xl font-bold text-success">${product.price.toFixed(2)}</p>
               </CardContent>
             </Card>

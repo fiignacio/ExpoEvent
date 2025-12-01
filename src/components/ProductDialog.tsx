@@ -34,6 +34,9 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
     promoAmount: editingProduct?.promotion?.discountAmount?.toString() || "",
   });
 
+  const [stockMode, setStockMode] = useState<"set" | "add">("set");
+  const [stockToAdd, setStockToAdd] = useState("");
+
   useEffect(() => {
     if (editingProduct) {
       setFormData({
@@ -50,6 +53,8 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
         promoAmount: editingProduct.promotion?.discountAmount?.toString() || "",
       });
       setOpen(true);
+      setStockMode("set");
+      setStockToAdd("");
     }
   }, [editingProduct]);
 
@@ -61,11 +66,15 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
       return;
     }
 
+    const finalStock = stockMode === "add" && isEditing
+      ? (editingProduct?.stock || 0) + Number(stockToAdd || 0)
+      : Number(formData.stock) || 0;
+
     const product: Omit<Product, "id"> = {
       name: formData.name,
       sku: formData.sku || `SKU-${Date.now()}`,
       category: formData.category || "Sin categoría",
-      stock: Number(formData.stock) || 0,
+      stock: finalStock,
       price: Number(formData.price),
       cost: Number(formData.cost) || 0,
     };
@@ -98,6 +107,10 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
       toast.success("Producto creado");
     }
     setOpen(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
     setFormData({
       name: "",
       sku: "",
@@ -111,25 +124,15 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
       promoPercentage: "",
       promoAmount: "",
     });
+    setStockMode("set");
+    setStockToAdd("");
   };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       setOpen(isOpen);
       if (!isOpen) {
-        setFormData({
-          name: "",
-          sku: "",
-          category: "",
-          stock: "",
-          price: "",
-          cost: "",
-          promoType: "none",
-          promoQuantity: "",
-          promoPrice: "",
-          promoPercentage: "",
-          promoAmount: "",
-        });
+        resetForm();
         onClose?.();
       }
     }}>
@@ -179,14 +182,58 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="stock">Stock Inicial</Label>
-              <Input
-                id="stock"
-                type="number"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                placeholder="100"
-              />
+              <Label htmlFor="stock">{isEditing ? "Stock" : "Stock Inicial"}</Label>
+              {isEditing && (
+                <div className="flex gap-2 mb-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={stockMode === "set" ? "default" : "outline"}
+                    onClick={() => setStockMode("set")}
+                    className="flex-1"
+                  >
+                    Establecer
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={stockMode === "add" ? "default" : "outline"}
+                    onClick={() => setStockMode("add")}
+                    className="flex-1"
+                  >
+                    Agregar
+                  </Button>
+                </div>
+              )}
+              {stockMode === "add" && isEditing ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Stock actual: <strong>{editingProduct?.stock}</strong></span>
+                  </div>
+                  <Input
+                    id="stockToAdd"
+                    type="number"
+                    min="0"
+                    value={stockToAdd}
+                    onChange={(e) => setStockToAdd(e.target.value)}
+                    placeholder="Cantidad a agregar"
+                  />
+                  {stockToAdd && Number(stockToAdd) > 0 && (
+                    <div className="text-sm text-success font-medium">
+                      Stock final: {(editingProduct?.stock || 0) + Number(stockToAdd)}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Input
+                  id="stock"
+                  type="number"
+                  min="0"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  placeholder="100"
+                />
+              )}
             </div>
           </div>
 
