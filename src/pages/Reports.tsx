@@ -13,13 +13,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users } from "lucide-react";
+import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users, Download } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
 import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "custom";
 
@@ -204,6 +206,138 @@ export default function Reports() {
     }
   };
 
+  const exportToExcel = async () => {
+    try {
+      const today = new Date();
+      let startDate: Date;
+      let endDate = today;
+      
+      switch (periodType) {
+        case "thisMonth":
+          startDate = startOfMonth(today);
+          break;
+        case "thisWeek":
+          startDate = startOfWeek(today, { weekStartsOn: 1 });
+          break;
+        case "custom":
+          startDate = customStartDate ? new Date(customStartDate) : subDays(today, 7);
+          endDate = customEndDate ? new Date(customEndDate) : today;
+          break;
+        default:
+          startDate = subDays(today, activeDays - 1);
+      }
+
+      // Fetch detailed sales
+      const { data: detailedSales, error } = await supabase
+        .from('offline_sales')
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Fetch user profiles separately
+      const userIds = [...new Set(detailedSales?.map(s => s.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+      
+      const profilesMap = new Map(profiles?.map(p => [p.user_id, p.full_name]));
+
+      // Group sales by date
+      const salesByDate: Record<string, any[]> = {};
+      detailedSales?.forEach(sale => {
+        const dateKey = format(new Date(sale.created_at), 'yyyy-MM-dd');
+        if (!salesByDate[dateKey]) {
+          salesByDate[dateKey] = [];
+        }
+        salesByDate[dateKey].push(sale);
+      });
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Summary sheet
+      const summaryData = [
+        { Campo: 'Período', Valor: getPeriodLabel() },
+        { Campo: 'Desde', Valor: format(startDate, 'PPP', { locale: es }) },
+        { Campo: 'Hasta', Valor: format(endDate, 'PPP', { locale: es }) },
+        { Campo: '', Valor: '' },
+        { Campo: 'Total Ventas', Valor: `$${totalSales.toFixed(2)}` },
+        { Campo: 'Total Transacciones', Valor: totalTransactions },
+        { Campo: 'Ticket Promedio', Valor: `$${averageTicket.toFixed(2)}` },
+        { Campo: 'Productos Vendidos', Valor: totalProductsSold },
+      ];
+      const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+
+      // Daily sales sheet
+      const dailyData: any[] = [];
+      Object.keys(salesByDate).sort().forEach(dateKey => {
+        const daySales = salesByDate[dateKey];
+        const dayTotal = daySales.reduce((sum, s) => sum + s.total, 0);
+        const dayCount = daySales.length;
+        
+        dailyData.push({
+          Fecha: format(new Date(dateKey), 'PPP', { locale: es }),
+          'Número de Ventas': dayCount,
+          'Total del Día': `$${dayTotal.toFixed(2)}`,
+          'Efectivo': `$${daySales.filter(s => s.payment_method === 'efectivo').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
+          'Débito': `$${daySales.filter(s => s.payment_method === 'debito').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
+          'Crédito': `$${daySales.filter(s => s.payment_method === 'credito').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
+          'Transferencia': `$${daySales.filter(s => s.payment_method === 'transferencia').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
+        });
+      });
+      const wsDaily = XLSX.utils.json_to_sheet(dailyData);
+      XLSX.utils.book_append_sheet(wb, wsDaily, 'Ventas por Día');
+
+      // Detailed transactions sheet
+      const transactionsData = detailedSales?.map(sale => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        return {
+          Fecha: format(new Date(sale.created_at), 'PPP HH:mm', { locale: es }),
+          Usuario: profilesMap.get(sale.user_id) || 'N/A',
+          'Método de Pago': sale.payment_method,
+          Subtotal: `$${sale.subtotal.toFixed(2)}`,
+          Impuesto: `$${sale.tax.toFixed(2)}`,
+          Total: `$${sale.total.toFixed(2)}`,
+          'Vuelto': sale.change_amount ? `$${sale.change_amount.toFixed(2)}` : '$0.00',
+          'Cantidad de Items': items.length,
+        };
+      }) || [];
+      const wsTransactions = XLSX.utils.json_to_sheet(transactionsData);
+      XLSX.utils.book_append_sheet(wb, wsTransactions, 'Transacciones Detalladas');
+
+      // Products sold sheet
+      const productsData = topProducts.map(p => ({
+        Producto: p.name,
+        'Cantidad Vendida': p.ventas,
+        'Total Ventas': `$${p.ingresos.toFixed(2)}`,
+      }));
+      const wsProducts = XLSX.utils.json_to_sheet(productsData);
+      XLSX.utils.book_append_sheet(wb, wsProducts, 'Productos Más Vendidos');
+
+      // Categories sheet
+      const categoriesData = categoryData.map(c => ({
+        Categoría: c.name,
+        'Total Ventas': `$${c.value.toFixed(2)}`,
+      }));
+      const wsCategories = XLSX.utils.json_to_sheet(categoriesData);
+      XLSX.utils.book_append_sheet(wb, wsCategories, 'Ventas por Categoría');
+
+      // Generate file
+      const fileName = `reporte_${format(startDate, 'yyyy-MM-dd')}_${format(endDate, 'yyyy-MM-dd')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      toast.success("Reporte exportado correctamente");
+    } catch (error: any) {
+      console.error("Error exporting report:", error);
+      toast.error("Error al exportar el reporte");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -249,6 +383,13 @@ export default function Reports() {
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Actualizar
+          </Button>
+          <Button 
+            onClick={exportToExcel}
+            disabled={reportsLoading}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Exportar a Excel
           </Button>
         </div>
       </div>
