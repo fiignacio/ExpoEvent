@@ -9,14 +9,17 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown, Package, Trash2 } from "lucide-react";
+import { DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown, Package, Trash2, Edit, X, Save, Minus, Plus } from "lucide-react";
 
 interface Sale {
   id: string;
@@ -42,6 +45,12 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  // Edit sale state
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [editedItems, setEditedItems] = useState<any[]>([]);
+  const [editedPaymentMethod, setEditedPaymentMethod] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (sessionId && open) {
@@ -62,6 +71,26 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
     
     setDeletingId(saleId);
     try {
+      // Find the sale to get items and revert stock
+      const saleToDelete = sales.find(s => s.id === saleId);
+      if (saleToDelete) {
+        // Revert stock for deleted items
+        for (const item of saleToDelete.items) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('stock')
+            .eq('id', item.id)
+            .single();
+          
+          if (product) {
+            await supabase
+              .from('products')
+              .update({ stock: product.stock + item.quantity })
+              .eq('id', item.id);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('offline_sales')
         .delete()
@@ -78,6 +107,107 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
     }
   };
 
+  const startEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setEditedItems(sale.items.map(item => ({ ...item })));
+    setEditedPaymentMethod(sale.payment_method);
+  };
+
+  const cancelEdit = () => {
+    setEditingSale(null);
+    setEditedItems([]);
+    setEditedPaymentMethod("");
+  };
+
+  const updateItemQuantity = (index: number, delta: number) => {
+    setEditedItems(prev => {
+      const newItems = [...prev];
+      const newQuantity = Math.max(0, newItems[index].quantity + delta);
+      if (newQuantity === 0) {
+        return newItems.filter((_, i) => i !== index);
+      }
+      newItems[index] = { ...newItems[index], quantity: newQuantity };
+      return newItems;
+    });
+  };
+
+  const removeItem = (index: number) => {
+    setEditedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingSale || editedItems.length === 0) {
+      toast.error("La venta debe tener al menos un producto");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 1. Calculate stock differences
+      const originalItems = editingSale.items;
+      
+      // Revert original stock
+      for (const item of originalItems) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+        
+        if (product) {
+          await supabase
+            .from('products')
+            .update({ stock: product.stock + item.quantity })
+            .eq('id', item.id);
+        }
+      }
+
+      // Apply new stock
+      for (const item of editedItems) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+        
+        if (product) {
+          await supabase
+            .from('products')
+            .update({ stock: product.stock - item.quantity })
+            .eq('id', item.id);
+        }
+      }
+
+      // 2. Calculate new totals
+      const newSubtotal = editedItems.reduce((sum, item) => {
+        const price = item.appliedDiscount ? item.originalPrice - item.appliedDiscount : item.price;
+        return sum + (price * item.quantity);
+      }, 0);
+      const newTotal = newSubtotal; // Assuming tax is included or handled elsewhere
+
+      // 3. Update sale
+      const { error } = await supabase
+        .from('offline_sales')
+        .update({
+          items: editedItems,
+          subtotal: newSubtotal,
+          total: newTotal,
+          payment_method: editedPaymentMethod
+        })
+        .eq('id', editingSale.id);
+
+      if (error) throw error;
+
+      toast.success("Venta actualizada correctamente");
+      cancelEdit();
+      loadSales();
+    } catch (error: any) {
+      toast.error("Error al actualizar la venta: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const paymentMethodStats = sales.reduce((acc, sale) => {
     acc[sale.payment_method] = (acc[sale.payment_method] || 0) + sale.total;
     return acc;
@@ -88,11 +218,18 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
   const expectedAmount = sessionData?.initial_amount + totalSales;
   const cashDifference = sessionData?.final_amount ? sessionData.final_amount - expectedAmount : 0;
 
+  const editedTotal = editedItems.reduce((sum, item) => {
+    const price = item.appliedDiscount ? item.originalPrice - item.appliedDiscount : item.price;
+    return sum + (price * item.quantity);
+  }, 0);
+
   const getPaymentIcon = (method: string) => {
     switch (method.toLowerCase()) {
       case 'efectivo':
         return <Banknote className="w-4 h-4" />;
       case 'tarjeta':
+      case 'debito':
+      case 'credito':
         return <CreditCard className="w-4 h-4" />;
       default:
         return <DollarSign className="w-4 h-4" />;
@@ -223,57 +360,163 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                   </Card>
                 ) : (
                   sales.map((sale) => (
-                    <Card key={sale.id}>
+                    <Card key={sale.id} className={editingSale?.id === sale.id ? "border-primary" : ""}>
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="capitalize">
-                                {sale.payment_method}
-                              </Badge>
-                              <span className="text-sm text-muted-foreground">
-                                {format(new Date(sale.created_at), "HH:mm", { locale: es })}
-                              </span>
-                            </div>
-                            {sale.payment_method.toLowerCase() === 'efectivo' && sale.change_amount && sale.change_amount > 0 && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                Vuelto entregado: ${sale.change_amount.toFixed(2)}
+                        {editingSale?.id === sale.id ? (
+                          // Edit Mode
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold">Editando Venta</h4>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={cancelEdit}
+                                  disabled={saving}
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveEdit}
+                                  disabled={saving || editedItems.length === 0}
+                                >
+                                  <Save className="w-4 h-4 mr-1" />
+                                  {saving ? "Guardando..." : "Guardar"}
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <div className="text-xl font-bold text-success">
-                                ${sale.total.toFixed(2)}
-                              </div>
                             </div>
-                            {role === 'admin' && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteSale(sale.id)}
-                                disabled={deletingId === sale.id}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+
+                            <div className="space-y-2">
+                              <Label>Método de Pago</Label>
+                              <Select value={editedPaymentMethod} onValueChange={setEditedPaymentMethod}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                                  <SelectItem value="debito">Débito</SelectItem>
+                                  <SelectItem value="credito">Crédito</SelectItem>
+                                  <SelectItem value="transferencia">Transferencia</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Productos</Label>
+                              {editedItems.length === 0 ? (
+                                <p className="text-sm text-destructive">Debe haber al menos un producto</p>
+                              ) : (
+                                editedItems.map((item, index) => (
+                                  <div key={index} className="flex items-center justify-between bg-accent/50 p-2 rounded-lg">
+                                    <div className="flex-1">
+                                      <span className="text-sm font-medium">{item.name}</span>
+                                      <span className="text-xs text-muted-foreground ml-2">
+                                        ${item.price.toFixed(2)} c/u
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => updateItemQuantity(index, -1)}
+                                      >
+                                        <Minus className="w-3 h-3" />
+                                      </Button>
+                                      <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => updateItemQuantity(index, 1)}
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                        onClick={() => removeItem(index)}
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            <div className="flex justify-between pt-2 border-t">
+                              <span className="font-semibold">Nuevo Total:</span>
+                              <span className="font-bold text-success">${editedTotal.toFixed(2)}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="space-y-1">
-                          {sale.items.map((item: any, index: number) => (
-                            <div key={index} className="flex items-center justify-between text-sm">
+                        ) : (
+                          // View Mode
+                          <>
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="outline" className="capitalize">
+                                    {sale.payment_method}
+                                  </Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    {format(new Date(sale.created_at), "HH:mm", { locale: es })}
+                                  </span>
+                                </div>
+                                {sale.payment_method.toLowerCase() === 'efectivo' && sale.change_amount && sale.change_amount > 0 && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Vuelto entregado: ${sale.change_amount.toFixed(2)}
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
-                                <Package className="w-3 h-3 text-muted-foreground" />
-                                <span>{item.name}</span>
-                                <span className="text-muted-foreground">x{item.quantity}</span>
+                                <div className="text-right">
+                                  <div className="text-xl font-bold text-success">
+                                    ${sale.total.toFixed(2)}
+                                  </div>
+                                </div>
+                                {role === 'admin' && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-primary hover:bg-primary/10"
+                                      onClick={() => startEditSale(sale)}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-destructive hover:bg-destructive/10"
+                                      onClick={() => handleDeleteSale(sale.id)}
+                                      disabled={deletingId === sale.id}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
-                              <span className="font-medium">
-                                ${(item.price * item.quantity).toFixed(2)}
-                              </span>
                             </div>
-                          ))}
-                        </div>
+                            <div className="space-y-1">
+                              {sale.items.map((item: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <Package className="w-3 h-3 text-muted-foreground" />
+                                    <span>{item.name}</span>
+                                    <span className="text-muted-foreground">x{item.quantity}</span>
+                                  </div>
+                                  <span className="font-medium">
+                                    ${(item.price * item.quantity).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </CardContent>
                     </Card>
                   ))

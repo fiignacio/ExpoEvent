@@ -136,16 +136,24 @@ export function CloseCashDialog({
                 <span className="text-muted-foreground">Monto Inicial:</span>
                 <span className="font-semibold">${initialAmount.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Ventas del Día:</span>
+                <span className="font-semibold text-success">+${totalSales.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm border-t pt-1 mt-1">
+                <span className="text-muted-foreground font-medium">Monto Esperado:</span>
+                <span className="font-bold">${(initialAmount + totalSales).toFixed(2)}</span>
+              </div>
               {finalAmount && (
                 <>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Monto Final:</span>
+                    <span className="text-muted-foreground">Monto Contado:</span>
                     <span className="font-semibold">${parseFloat(finalAmount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm pt-2 border-t">
-                    <span className="text-muted-foreground">Diferencia:</span>
-                    <span className={`font-bold ${difference >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      ${Math.abs(difference).toFixed(2)} {difference >= 0 ? '(+)' : '(-)'}
+                    <span className="text-muted-foreground">Diferencia de Caja:</span>
+                    <span className={`font-bold ${(parseFloat(finalAmount) - (initialAmount + totalSales)) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      ${Math.abs(parseFloat(finalAmount) - (initialAmount + totalSales)).toFixed(2)} {(parseFloat(finalAmount) - (initialAmount + totalSales)) >= 0 ? '(Sobrante)' : '(Faltante)'}
                     </span>
                   </div>
                 </>
