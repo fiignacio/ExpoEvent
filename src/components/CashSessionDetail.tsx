@@ -408,34 +408,43 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                               {editedItems.length === 0 ? (
                                 <p className="text-sm text-destructive">Debe haber al menos un producto</p>
                               ) : (
-                                editedItems.map((item, index) => (
-                                  <div key={index} className="flex items-center justify-between bg-accent/50 p-2 rounded-lg">
-                                    <div className="flex-1">
-                                      <span className="text-sm font-medium">{item.name}</span>
-                                      <span className="text-xs text-muted-foreground ml-2">
-                                        ${item.price.toFixed(2)} c/u
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={() => updateItemQuantity(index, -1)}
-                                      >
-                                        <Minus className="w-3 h-3" />
-                                      </Button>
-                                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={() => updateItemQuantity(index, 1)}
-                                      >
-                                        <Plus className="w-3 h-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
+                                 editedItems.map((item, index) => (
+                                   <div key={index} className="flex items-center justify-between bg-accent/50 p-2 rounded-lg">
+                                     <div className="flex-1">
+                                       <span className="text-sm font-medium">{item.name}</span>
+                                       <span className="text-xs text-muted-foreground ml-2">
+                                         ${item.price.toFixed(2)} c/u
+                                       </span>
+                                     </div>
+                                     <div className="flex items-center gap-2">
+                                       <Button
+                                         variant="ghost"
+                                         size="icon"
+                                         className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                         onClick={() => removeItem(index)}
+                                         title="Eliminar producto"
+                                       >
+                                         <X className="w-4 h-4" />
+                                       </Button>
+                                       <Button
+                                         variant="outline"
+                                         size="icon"
+                                         className="h-7 w-7"
+                                         onClick={() => updateItemQuantity(index, -1)}
+                                       >
+                                         <Minus className="w-3 h-3" />
+                                       </Button>
+                                       <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                       <Button
+                                         variant="outline"
+                                         size="icon"
+                                         className="h-7 w-7"
+                                         onClick={() => updateItemQuantity(index, 1)}
+                                       >
+                                         <Plus className="w-3 h-3" />
+                                       </Button>
+                                       <Button
+                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-destructive hover:bg-destructive/10"
                                         onClick={() => removeItem(index)}
