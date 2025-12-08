@@ -897,11 +897,10 @@ export default function POS() {
                 )}
 
                 <CardContent className="p-3 md:p-6">
-                  {product.promotion && (
+                {product.promotion && (
                     <Badge className="absolute top-1 right-1 md:top-2 md:right-2 bg-warning text-warning-foreground text-[10px] md:text-xs">
                       <Tag className="w-2 h-2 md:w-3 md:h-3 mr-0.5 md:mr-1" />
-                      <span className="hidden sm:inline">{getPromotionLabel(product)}</span>
-                      <span className="sm:hidden">PROMO</span>
+                      {getPromotionLabel(product)}
                     </Badge>
                   )}
                   <div className="aspect-square bg-gradient-subtle rounded-lg mb-2 flex items-center justify-center h-12 md:h-16">
