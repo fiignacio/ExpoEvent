@@ -863,35 +863,35 @@ export default function POS() {
                 {/* Contador con botones +/- */}
                 {cartQuantity > 0 && (
                   <div 
-                    className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10 flex items-center gap-1 bg-background border rounded-full shadow-lg px-1 py-0.5"
+                    className="absolute -top-3 md:-top-4 left-1/2 transform -translate-x-1/2 z-10 flex items-center gap-1 md:gap-2 bg-background border-2 border-primary rounded-full shadow-lg px-1 md:px-2 py-0.5 md:py-1"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 rounded-full hover:bg-destructive/10"
+                      className="h-7 w-7 md:h-9 md:w-9 rounded-full hover:bg-destructive/10 text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
                         updateQuantity(product.id, -1);
                       }}
                     >
-                      <Minus className="w-4 h-4" />
+                      <Minus className="w-4 h-4 md:w-5 md:h-5" />
                     </Button>
                     
-                    <span className="font-bold text-sm min-w-[24px] text-center">
+                    <span className="font-bold text-sm md:text-lg min-w-[24px] md:min-w-[32px] text-center text-primary">
                       {cartQuantity}
                     </span>
                     
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 rounded-full hover:bg-success/10"
+                      className="h-7 w-7 md:h-9 md:w-9 rounded-full hover:bg-success/10 text-success"
                       onClick={(e) => {
                         e.stopPropagation();
                         addToCart(product);
                       }}
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     </Button>
                   </div>
                 )}
