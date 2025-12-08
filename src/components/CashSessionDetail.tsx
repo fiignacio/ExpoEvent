@@ -571,19 +571,44 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                                 )}
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              {sale.items.map((item: any, index: number) => (
-                                <div key={index} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <Package className="w-3 h-3 text-muted-foreground" />
-                                    <span>{item.name}</span>
-                                    <span className="text-muted-foreground">x{item.quantity}</span>
+                            <div className="space-y-2">
+                              {sale.items.map((item: any, index: number) => {
+                                const itemTotal = item.price * item.quantity;
+                                const discount = item.appliedDiscount || 0;
+                                const finalPrice = itemTotal - discount;
+                                const hasPromotion = discount > 0;
+                                
+                                return (
+                                  <div key={index} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Package className="w-3 h-3 text-muted-foreground" />
+                                      <span>{item.name}</span>
+                                      <span className="text-muted-foreground">x{item.quantity}</span>
+                                      {hasPromotion && item.promotion && (
+                                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                          {item.promotion.quantity}x${item.promotion.discountedPrice?.toLocaleString()}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      {hasPromotion ? (
+                                        <div className="flex flex-col items-end">
+                                          <span className="font-medium text-success">
+                                            ${finalPrice.toLocaleString()}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground line-through">
+                                            ${itemTotal.toLocaleString()}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="font-medium">
+                                          ${itemTotal.toLocaleString()}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <span className="font-medium">
-                                    ${(item.price * item.quantity).toFixed(2)}
-                                  </span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </>
                         )}
