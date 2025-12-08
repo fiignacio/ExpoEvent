@@ -17,9 +17,10 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useAuth } from "@/hooks/useAuth";
+import { useProducts } from "@/hooks/useProducts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown, Package, Trash2, Edit, X, Save, Minus, Plus } from "lucide-react";
+import { DollarSign, CreditCard, Banknote, TrendingUp, TrendingDown, Package, Trash2, Edit, X, Save, Minus, Plus, Search } from "lucide-react";
 
 interface Sale {
   id: string;
@@ -42,6 +43,7 @@ interface CashSessionDetailProps {
 export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }: CashSessionDetailProps) {
   const { fetchSessionSales } = useCashSessions();
   const { role } = useAuth();
+  const { products } = useProducts();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -51,6 +53,10 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
   const [editedItems, setEditedItems] = useState<any[]>([]);
   const [editedPaymentMethod, setEditedPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
+  
+  // Add product state
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductList, setShowProductList] = useState(false);
 
   useEffect(() => {
     if (sessionId && open) {
@@ -134,6 +140,35 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
   const removeItem = (index: number) => {
     setEditedItems(prev => prev.filter((_, i) => i !== index));
   };
+
+  const addProductToEdit = (product: any) => {
+    const existingIndex = editedItems.findIndex(item => item.id === product.id);
+    
+    if (existingIndex >= 0) {
+      // Si ya existe, aumentar cantidad
+      updateItemQuantity(existingIndex, 1);
+    } else {
+      // Si no existe, agregar nuevo item
+      setEditedItems(prev => [...prev, {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        originalPrice: product.price,
+        appliedDiscount: 0,
+        stock: product.stock
+      }]);
+    }
+    
+    setProductSearch("");
+    setShowProductList(false);
+    toast.success(`${product.name} agregado a la venta`);
+  };
+
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.sku.toLowerCase().includes(productSearch.toLowerCase())
+  ).slice(0, 5);
 
   const handleSaveEdit = async () => {
     if (!editingSale || editedItems.length === 0) {
@@ -404,7 +439,41 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                             </div>
 
                             <div className="space-y-2">
-                              <Label>Productos</Label>
+                              <Label>Agregar Producto</Label>
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                                <Input
+                                  placeholder="Buscar producto para agregar..."
+                                  value={productSearch}
+                                  onChange={(e) => {
+                                    setProductSearch(e.target.value);
+                                    setShowProductList(e.target.value.length > 0);
+                                  }}
+                                  onFocus={() => productSearch.length > 0 && setShowProductList(true)}
+                                  className="pl-10"
+                                />
+                                {showProductList && filteredProducts.length > 0 && (
+                                  <div className="absolute z-20 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-48 overflow-auto">
+                                    {filteredProducts.map(product => (
+                                      <div
+                                        key={product.id}
+                                        className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                        onClick={() => addProductToEdit(product)}
+                                      >
+                                        <div>
+                                          <span className="text-sm font-medium">{product.name}</span>
+                                          <span className="text-xs text-muted-foreground ml-2">{product.sku}</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-success">${product.price.toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Productos en la venta</Label>
                               {editedItems.length === 0 ? (
                                 <p className="text-sm text-destructive">Debe haber al menos un producto</p>
                               ) : (
@@ -417,15 +486,6 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                                        </span>
                                      </div>
                                      <div className="flex items-center gap-2">
-                                       <Button
-                                         variant="ghost"
-                                         size="icon"
-                                         className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                                         onClick={() => removeItem(index)}
-                                         title="Eliminar producto"
-                                       >
-                                         <X className="w-4 h-4" />
-                                       </Button>
                                        <Button
                                          variant="outline"
                                          size="icon"
@@ -448,8 +508,9 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
                                         size="icon"
                                         className="h-7 w-7 text-destructive hover:bg-destructive/10"
                                         onClick={() => removeItem(index)}
+                                        title="Eliminar producto"
                                       >
-                                        <X className="w-3 h-3" />
+                                        <X className="w-4 h-4" />
                                       </Button>
                                     </div>
                                   </div>

@@ -851,38 +851,78 @@ export default function POS() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          {filteredProducts.map(product => (
+          {filteredProducts.map(product => {
+            const cartQuantity = cart.find(item => item.id === product.id)?.quantity || 0;
+            
+            return (
               <Card
-              key={product.id}
-              className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 relative"
-              onClick={() => addToCart(product)}
-            >
-              <CardContent className="p-3 md:p-6">
-                {product.promotion && (
-                  <Badge className="absolute top-1 right-1 md:top-2 md:right-2 bg-warning text-warning-foreground text-[10px] md:text-xs">
-                    <Tag className="w-2 h-2 md:w-3 md:h-3 mr-0.5 md:mr-1" />
-                    <span className="hidden sm:inline">{getPromotionLabel(product)}</span>
-                    <span className="sm:hidden">PROMO</span>
-                  </Badge>
+                key={product.id}
+                className="cursor-pointer hover:shadow-lg transition-all hover:scale-105 relative"
+                onClick={() => cartQuantity === 0 ? addToCart(product) : undefined}
+              >
+                {/* Contador con botones +/- */}
+                {cartQuantity > 0 && (
+                  <div 
+                    className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10 flex items-center gap-1 bg-background border rounded-full shadow-lg px-1 py-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-full hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateQuantity(product.id, -1);
+                      }}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    
+                    <span className="font-bold text-sm min-w-[24px] text-center">
+                      {cartQuantity}
+                    </span>
+                    
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-full hover:bg-success/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart(product);
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 )}
-              <div className="aspect-square bg-gradient-subtle rounded-lg mb-2 flex items-center justify-center h-12 md:h-16">
-                  <Package className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
-                </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <h3 className="font-semibold text-xs md:text-sm leading-tight min-h-[2.5rem] md:min-h-[3rem] break-words cursor-default">{product.name}</h3>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[200px]">
-                      <p>{product.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <p className="text-[10px] md:text-xs text-muted-foreground mb-1">{product.category}</p>
-                <p className="text-base md:text-xl font-bold text-success">${product.price.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-          ))}
+
+                <CardContent className="p-3 md:p-6">
+                  {product.promotion && (
+                    <Badge className="absolute top-1 right-1 md:top-2 md:right-2 bg-warning text-warning-foreground text-[10px] md:text-xs">
+                      <Tag className="w-2 h-2 md:w-3 md:h-3 mr-0.5 md:mr-1" />
+                      <span className="hidden sm:inline">{getPromotionLabel(product)}</span>
+                      <span className="sm:hidden">PROMO</span>
+                    </Badge>
+                  )}
+                  <div className="aspect-square bg-gradient-subtle rounded-lg mb-2 flex items-center justify-center h-12 md:h-16">
+                    <Package className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <h3 className="font-semibold text-xs md:text-sm leading-tight min-h-[2.5rem] md:min-h-[3rem] break-words cursor-default">{product.name}</h3>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px]">
+                        <p>{product.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <p className="text-[10px] md:text-xs text-muted-foreground mb-1">{product.category}</p>
+                  <p className="text-base md:text-xl font-bold text-success">${product.price.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
