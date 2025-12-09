@@ -12,11 +12,19 @@ import {
   LogOut,
   KeyRound,
   BarChart3,
+  MoreHorizontal,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const navItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -62,9 +70,12 @@ export const Navigation = () => {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   if (isMobile) {
+    const visibleItems = filteredNavItems.slice(0, 4);
+    const hiddenItems = filteredNavItems.slice(4);
+
     return (
       <nav className="flex justify-around items-center w-full">
-        {filteredNavItems.slice(0, 5).map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           
@@ -84,6 +95,60 @@ export const Navigation = () => {
             </Link>
           );
         })}
+        
+        <Sheet>
+          <SheetTrigger asChild>
+            <button className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all text-muted-foreground">
+              <MoreHorizontal className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Más</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-auto max-h-[70vh]">
+            <SheetHeader>
+              <SheetTitle>Menú</SheetTitle>
+            </SheetHeader>
+            <div className="py-4 space-y-2">
+              {hiddenItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent"
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+              
+              <Separator className="my-3" />
+              
+              {profile && (
+                <div className="px-4 py-2 mb-2">
+                  <p className="text-sm font-medium">{profile.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{profile.email}</p>
+                </div>
+              )}
+              
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={signOut}
+              >
+                <LogOut className="w-5 h-5 mr-3" />
+                Cerrar Sesión
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </nav>
     );
   }
