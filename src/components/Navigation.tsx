@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sheet,
   SheetContent,
@@ -42,6 +43,7 @@ export const Navigation = () => {
   const location = useLocation();
   const { profile, role, signOut } = useAuth();
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -65,9 +67,6 @@ export const Navigation = () => {
   const filteredNavItems = navItems.filter(
     (item) => permissions[item.key] === true
   );
-
-  // Mobile: mostrar solo iconos en barra inferior
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   if (isMobile) {
     const visibleItems = filteredNavItems.slice(0, 4);
