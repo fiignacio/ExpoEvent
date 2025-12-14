@@ -473,14 +473,16 @@ export default function Reports() {
       )}
 
       <Tabs defaultValue="zreport" className="space-y-4">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="zreport">Cierre Z</TabsTrigger>
-          <TabsTrigger value="sales">Ventas</TabsTrigger>
-          <TabsTrigger value="products">Productos</TabsTrigger>
-          <TabsTrigger value="categories">Categorías</TabsTrigger>
-          <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
-          <TabsTrigger value="sessions">Sesiones de Caja</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="flex-wrap w-full sm:w-auto">
+            <TabsTrigger value="zreport" className="text-xs sm:text-sm">Cierre Z</TabsTrigger>
+            <TabsTrigger value="sales" className="text-xs sm:text-sm">Ventas</TabsTrigger>
+            <TabsTrigger value="products" className="text-xs sm:text-sm">Productos</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs sm:text-sm">Categorías</TabsTrigger>
+            <TabsTrigger value="suppliers" className="text-xs sm:text-sm">Proveedores</TabsTrigger>
+            <TabsTrigger value="sessions" className="text-xs sm:text-sm">Sesiones</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="zreport" className="space-y-4">
           {loadingZReport ? (
@@ -874,7 +876,7 @@ export default function Reports() {
                   No hay sesiones de caja registradas
                 </div>
               ) : (
-                <div className="space-y-3">
+              <div className="space-y-3">
                   {sessions.map((session) => {
                     const difference = session.final_amount 
                       ? session.final_amount - session.initial_amount 
@@ -883,61 +885,68 @@ export default function Reports() {
                     return (
                       <Card key={session.id} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
+                          {/* Layout responsive: columna en móvil, fila en desktop */}
+                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            
+                            {/* Información de la sesión */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 mb-2 flex-wrap">
                                 <Badge 
                                   variant={session.status === 'open' ? 'default' : 'secondary'}
                                   className="capitalize"
                                 >
                                   {session.status === 'open' ? 'Abierta' : 'Cerrada'}
                                 </Badge>
-                                <span className="font-medium">
+                                <span className="font-medium truncate">
                                   {session.profiles?.full_name}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
-                                  <Calendar className="w-4 h-4" />
-                                  {format(new Date(session.opened_at), "PPP", { locale: es })}
+                                  <Calendar className="w-4 h-4 flex-shrink-0" />
+                                  <span className="truncate">{format(new Date(session.opened_at), "PPP", { locale: es })}</span>
                                 </div>
-                                <span>
+                                <span className="text-xs sm:text-sm">
                                   {format(new Date(session.opened_at), "HH:mm", { locale: es })}
                                   {session.closed_at && ` - ${format(new Date(session.closed_at), "HH:mm", { locale: es })}`}
                                 </span>
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-6">
-                              <div className="text-right">
-                                <div className="text-sm text-muted-foreground">Inicial</div>
-                                <div className="font-semibold">${session.initial_amount.toFixed(2)}</div>
+                            {/* Montos - grid responsive */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:items-center gap-3 lg:gap-6">
+                              <div className="text-left lg:text-right">
+                                <div className="text-xs sm:text-sm text-muted-foreground">Inicial</div>
+                                <div className="font-semibold text-sm sm:text-base">${session.initial_amount.toFixed(2)}</div>
                               </div>
                               
                               {session.status === 'closed' && (
                                 <>
-                                  <div className="text-right">
-                                    <div className="text-sm text-muted-foreground">Final</div>
-                                    <div className="font-semibold">${session.final_amount?.toFixed(2)}</div>
+                                  <div className="text-left lg:text-right">
+                                    <div className="text-xs sm:text-sm text-muted-foreground">Final</div>
+                                    <div className="font-semibold text-sm sm:text-base">${session.final_amount?.toFixed(2)}</div>
                                   </div>
                                   
-                                  <div className="text-right">
-                                    <div className="text-sm text-muted-foreground">Diferencia</div>
-                                    <div className={`font-bold ${difference >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                  <div className="text-left lg:text-right">
+                                    <div className="text-xs sm:text-sm text-muted-foreground">Diferencia</div>
+                                    <div className={`font-bold text-sm sm:text-base ${difference >= 0 ? 'text-success' : 'text-destructive'}`}>
                                       ${Math.abs(difference).toFixed(2)} {difference >= 0 ? '(+)' : '(-)'}
                                     </div>
                                   </div>
                                 </>
                               )}
                               
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewSession(session)}
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                Ver Detalle
-                              </Button>
+                              <div className="col-span-2 sm:col-span-1 lg:flex-shrink-0">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewSession(session)}
+                                  className="w-full lg:w-auto"
+                                >
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver Detalle
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardContent>
