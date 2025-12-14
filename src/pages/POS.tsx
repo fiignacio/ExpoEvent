@@ -516,6 +516,7 @@ export default function POS() {
 
         // Generar transacciones automáticas para proveedores
         const productIds = cart.map(item => item.id);
+        console.log("🔍 Buscando productos vinculados a proveedores. IDs:", productIds);
         
         // Obtener productos vinculados a proveedores
         const { data: customerProducts, error: cpError } = await supabase
@@ -527,8 +528,11 @@ export default function POS() {
           .in('product_id', productIds);
 
         if (cpError) {
-          console.error("Error fetching customer products:", cpError);
+          console.error("❌ Error fetching customer products:", cpError);
+          toast.error("No se pudieron registrar las comisiones de proveedores");
         }
+        
+        console.log("📦 Productos vinculados encontrados:", customerProducts);
 
         // Crear transacciones de deuda para cada proveedor
         if (customerProducts && customerProducts.length > 0) {
@@ -568,12 +572,18 @@ export default function POS() {
           }));
 
           if (debtTransactions.length > 0) {
+            console.log("💰 Creando transacciones de proveedor:", debtTransactions);
+            
             const { error: debtError } = await supabase
               .from('customer_transactions')
               .insert(debtTransactions);
 
             if (debtError) {
-              console.error("Error creating supplier debts:", debtError);
+              console.error("❌ Error creating supplier debts:", debtError);
+              toast.error("Error al registrar comisiones de proveedores");
+            } else {
+              console.log("✅ Transacciones de proveedor creadas exitosamente");
+              toast.success(`Comisiones registradas para ${debtTransactions.length} proveedor(es)`);
             }
           }
         }
