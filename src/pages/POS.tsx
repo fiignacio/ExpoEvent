@@ -981,14 +981,14 @@ export default function POS() {
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Procesar Pago</DialogTitle>
             <DialogDescription>
               Total a cobrar: <span className="font-bold text-lg text-success">${total.toFixed(2)}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6">
+          <div className="flex-1 overflow-y-auto space-y-6">
             <div className="space-y-4">
               <Label>Método de Pago</Label>
               <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
