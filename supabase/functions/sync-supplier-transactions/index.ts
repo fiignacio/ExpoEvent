@@ -81,9 +81,9 @@ Deno.serve(async (req) => {
       throw cpError;
     }
 
-    // Filter only suppliers (both types)
+    // Filter only suppliers (normalized type)
     const supplierProducts = customerProducts?.filter(
-      (cp: any) => cp.customers?.type === 'supplier' || cp.customers?.type === 'proveedor'
+      (cp: any) => cp.customers?.type === 'proveedor'
     ) || [];
 
     console.log(`Found ${supplierProducts.length} supplier product links`);
