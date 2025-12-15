@@ -776,38 +776,41 @@ function CustomerDetail({
               </CardHeader>
               <CardContent className="space-y-4">
                 {selectedTransactions.length > 0 && (
-                  <div className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
-                    <div>
-                      <p className="font-semibold">
-                        {selectedTransactions.length} transacciones seleccionadas
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Total: ${selectedTotal.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedTransactions([])}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={handleDeleteSelected}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Eliminar
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handlePaySelected}
-                      >
-                        <CheckSquare className="w-4 h-4 mr-2" />
-                        Marcar como Pagado
-                      </Button>
+                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">
+                          {selectedTransactions.length} transacciones seleccionadas
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Total: ${selectedTotal.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedTransactions([])}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={handleDeleteSelected}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Eliminar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handlePaySelected}
+                          className="whitespace-nowrap"
+                        >
+                          <CheckSquare className="w-4 h-4 mr-2" />
+                          Marcar Pagado
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
