@@ -114,13 +114,13 @@ export default function Customers() {
               <span className="hidden sm:inline">Nuevo Cliente/Proveedor</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>
                 {isEditMode ? "Editar" : "Nuevo"} Cliente/Proveedor
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nombre *</Label>
@@ -486,11 +486,11 @@ function CustomerDetail({
                       Registrar Deuda
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
+                  <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                       <DialogTitle>Registrar Deuda por Productos</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto space-y-4">
                       <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
                         <div className="flex items-center gap-2">
                           <Checkbox
@@ -586,8 +586,8 @@ function CustomerDetail({
                       Vincular Productos
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
-                    <DialogHeader>
+                  <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                    <DialogHeader className="flex-shrink-0">
                       <DialogTitle>Vincular Productos</DialogTitle>
                     </DialogHeader>
                     <BulkProductSelector
@@ -678,8 +678,8 @@ function CustomerDetail({
                           Nueva Transacción
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
+                      <DialogContent className="max-h-[85vh] flex flex-col">
+                        <DialogHeader className="flex-shrink-0">
                           <DialogTitle>Nueva Transacción</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleAddTransaction} className="space-y-4">

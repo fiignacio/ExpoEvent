@@ -86,8 +86,8 @@ export function CloseCashDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="w-5 h-5" />
               Cierre de Caja
@@ -96,7 +96,7 @@ export function CloseCashDialog({
               Revisa los ingresos por método de pago e ingresa el monto final
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto space-y-4">
             {/* Resumen de Ingresos por Método de Pago */}
             <div>
               <h4 className="text-sm font-semibold mb-2">Ingresos por Método de Pago</h4>

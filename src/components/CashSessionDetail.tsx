@@ -273,15 +273,15 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Detalle de Sesión de Caja</DialogTitle>
           <DialogDescription>
             {sessionData?.profiles?.full_name} - {sessionData?.opened_at && format(new Date(sessionData.opened_at), "PPP 'a las' HH:mm", { locale: es })}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[calc(90vh-8rem)] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="space-y-6">
             {/* Resumen de la Sesión */}
             <div className="grid gap-4 md:grid-cols-3">

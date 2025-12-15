@@ -237,14 +237,14 @@ export default function AccessCodes() {
       </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Crear Nuevo Código</DialogTitle>
             <DialogDescription>
               Genera un código de acceso para un nuevo usuario
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateCode} className="space-y-4">
+          <form onSubmit={handleCreateCode} className="flex-1 overflow-y-auto space-y-4">
             <div className="space-y-2">
               <Label htmlFor="code">Código</Label>
               <div className="flex gap-2">
