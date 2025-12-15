@@ -47,7 +47,7 @@ export default function Customers() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    type: "customer" as "customer" | "supplier",
+    type: "cliente" as "cliente" | "proveedor",
     email: "",
     phone: "",
     address: "",
@@ -68,7 +68,7 @@ export default function Customers() {
   const resetForm = () => {
     setFormData({
       name: "",
-      type: "customer",
+      type: "cliente",
       email: "",
       phone: "",
       address: "",
@@ -137,7 +137,7 @@ export default function Customers() {
                   <Label htmlFor="type">Tipo *</Label>
                   <Select
                     value={formData.type}
-                    onValueChange={(value: "customer" | "supplier") =>
+                    onValueChange={(value: "cliente" | "proveedor") =>
                       setFormData({ ...formData, type: value })
                     }
                   >
@@ -145,8 +145,8 @@ export default function Customers() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="customer">Cliente</SelectItem>
-                      <SelectItem value="supplier">Proveedor</SelectItem>
+                      <SelectItem value="cliente">Cliente</SelectItem>
+                      <SelectItem value="proveedor">Proveedor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -249,10 +249,10 @@ export default function Customers() {
                         </TableCell>
                         <TableCell className="py-2 sm:py-4">
                           <Badge
-                            variant={customer.type === "customer" ? "default" : "secondary"}
+                            variant={customer.type === "cliente" ? "default" : "secondary"}
                             className="text-[10px] sm:text-xs"
                           >
-                            {customer.type === "customer" ? "Cliente" : "Proveedor"}
+                            {customer.type === "cliente" ? "Cliente" : "Proveedor"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm hidden sm:table-cell py-2 sm:py-4">
@@ -448,8 +448,8 @@ function CustomerDetail({
         <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
           <div>
             <CardTitle className="text-lg sm:text-xl">{customer.name}</CardTitle>
-            <Badge variant={customer.type === "customer" ? "default" : "secondary"} className="mt-1 text-xs">
-              {customer.type === "customer" ? "Cliente" : "Proveedor"}
+            <Badge variant={customer.type === "cliente" ? "default" : "secondary"} className="mt-1 text-xs">
+              {customer.type === "cliente" ? "Cliente" : "Proveedor"}
             </Badge>
           </div>
           <Button variant="outline" size="sm" onClick={onClose} className="w-full sm:w-auto">
@@ -595,7 +595,7 @@ function CustomerDetail({
                       existingProductIds={existingProductIds}
                       onAddProducts={handleAddMultipleProducts}
                       onClose={() => setProductDialogOpen(false)}
-                      isSupplier={customer.type === 'supplier'}
+                      isSupplier={customer.type === 'proveedor'}
                     />
                   </DialogContent>
                 </Dialog>
@@ -606,7 +606,7 @@ function CustomerDetail({
                 <TableRow>
                   <TableHead>Producto</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>{customer.type === 'supplier' ? 'Monto por Venta' : 'Precio'}</TableHead>
+                  <TableHead>{customer.type === 'proveedor' ? 'Monto por Venta' : 'Precio'}</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1058,9 +1058,9 @@ function DebtRow({ customer }: { customer: Customer }) {
       <TableCell className="font-medium">{customer.name}</TableCell>
       <TableCell>
         <Badge
-          variant={customer.type === "customer" ? "default" : "secondary"}
+          variant={customer.type === "cliente" ? "default" : "secondary"}
         >
-          {customer.type === "customer" ? "Cliente" : "Proveedor"}
+          {customer.type === "cliente" ? "Cliente" : "Proveedor"}
         </Badge>
       </TableCell>
       <TableCell className={`font-semibold ${balance > 0 ? "text-destructive" : "text-green-500"}`}>

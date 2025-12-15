@@ -85,9 +85,9 @@ export default function POS() {
         return;
       }
       
-      // Verificar que el cliente seleccionado sea tipo "customer" (no "supplier")
+      // Verificar que el cliente seleccionado sea tipo "cliente" (no "proveedor")
       const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-      if (!selectedCustomer || selectedCustomer.type !== "customer") {
+      if (!selectedCustomer || selectedCustomer.type !== "cliente") {
         setCustomerPrices(new Map());
         return;
       }
@@ -733,7 +733,7 @@ export default function POS() {
               <SelectValue placeholder="Seleccionar cliente" />
             </SelectTrigger>
             <SelectContent>
-              {customers.filter(c => c.type === "customer").map((customer) => (
+              {customers.filter(c => c.type === "cliente").map((customer) => (
                 <SelectItem key={customer.id} value={customer.id}>
                   {customer.name}
                 </SelectItem>

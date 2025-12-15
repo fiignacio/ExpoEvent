@@ -138,9 +138,9 @@ export function ProductDialog({ onSave, trigger, product: editingProduct, onUpda
     }}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="bg-gradient-primary">
-            <Plus className="w-5 h-5 mr-2" />
-            Nuevo Producto
+          <Button className="bg-gradient-primary whitespace-nowrap">
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 flex-shrink-0" />
+            <span className="text-xs sm:text-sm">Nuevo Producto</span>
           </Button>
         )}
       </DialogTrigger>

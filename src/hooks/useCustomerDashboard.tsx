@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface DebtSummary {
   customerId: string;
   customerName: string;
-  customerType: "customer" | "supplier";
+  customerType: "cliente" | "proveedor";
   totalDebt: number;
   pendingTransactions: number;
 }
@@ -101,7 +101,7 @@ export const useCustomerDashboard = () => {
 
       debtMap.forEach((summary) => {
         if (summary.totalDebt > 0) {
-          if (summary.customerType === "customer") {
+          if (summary.customerType === "cliente") {
             receivablesList.push(summary);
           } else {
             payablesList.push(summary);
@@ -152,7 +152,7 @@ export const useCustomerDashboard = () => {
         const amount = Number(transaction.amount);
 
         if (transaction.type === "debt") {
-          if (transaction.customer.type === "customer") {
+          if (transaction.customer.type === "cliente") {
             trend.receivables += amount;
           } else {
             trend.payables += amount;

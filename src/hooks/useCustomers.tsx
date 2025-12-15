@@ -6,7 +6,7 @@ import { useAuth } from "./useAuth";
 export interface Customer {
   id: string;
   name: string;
-  type: "customer" | "supplier";
+  type: "cliente" | "proveedor";
   email?: string;
   phone?: string;
   address?: string;
