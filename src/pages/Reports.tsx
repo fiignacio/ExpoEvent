@@ -506,14 +506,14 @@ export default function Reports() {
       )}
 
       <Tabs defaultValue="zreport" className="space-y-4">
-        <div className="overflow-x-auto">
-          <TabsList className="flex-wrap w-full sm:w-auto">
-            <TabsTrigger value="zreport" className="text-xs sm:text-sm">Cierre Z</TabsTrigger>
-            <TabsTrigger value="sales" className="text-xs sm:text-sm">Ventas</TabsTrigger>
-            <TabsTrigger value="products" className="text-xs sm:text-sm">Productos</TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-sm">Categorías</TabsTrigger>
-            <TabsTrigger value="suppliers" className="text-xs sm:text-sm">Proveedores</TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs sm:text-sm">Sesiones</TabsTrigger>
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-max min-w-full sm:w-auto sm:min-w-0">
+            <TabsTrigger value="zreport" className="text-xs sm:text-sm whitespace-nowrap">Cierre Z</TabsTrigger>
+            <TabsTrigger value="sales" className="text-xs sm:text-sm whitespace-nowrap">Ventas</TabsTrigger>
+            <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap">Productos</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs sm:text-sm whitespace-nowrap">Categorías</TabsTrigger>
+            <TabsTrigger value="suppliers" className="text-xs sm:text-sm whitespace-nowrap">Proveedores</TabsTrigger>
+            <TabsTrigger value="sessions" className="text-xs sm:text-sm whitespace-nowrap">Sesiones</TabsTrigger>
           </TabsList>
         </div>
 
@@ -588,47 +588,51 @@ export default function Reports() {
                       ) : (
                         zReportData.sessions.map((session: any) => (
                           <Card key={session.id}>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge variant={session.status === 'open' ? 'default' : 'secondary'}>
-                                      {session.status === 'open' ? 'Abierta' : 'Cerrada'}
-                                    </Badge>
-                                    <span className="font-medium">{session.profiles?.full_name}</span>
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
+                            <CardContent className="p-3 sm:p-4">
+                              <div className="flex flex-col gap-3">
+                                {/* Header row */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant={session.status === 'open' ? 'default' : 'secondary'}>
+                                    {session.status === 'open' ? 'Abierta' : 'Cerrada'}
+                                  </Badge>
+                                  <span className="font-medium text-sm sm:text-base">{session.profiles?.full_name}</span>
+                                  <span className="text-xs sm:text-sm text-muted-foreground ml-auto">
                                     {format(new Date(session.opened_at), "HH:mm", { locale: es })}
                                     {session.closed_at && ` - ${format(new Date(session.closed_at), "HH:mm", { locale: es })}`}
-                                  </div>
+                                  </span>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="text-right">
+                                
+                                {/* Amounts grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                                  <div className="bg-muted/50 rounded-lg p-2">
                                     <div className="text-xs text-muted-foreground">Inicial</div>
-                                    <div className="font-semibold">${session.initial_amount.toFixed(2)}</div>
+                                    <div className="font-semibold text-sm">${session.initial_amount.toFixed(2)}</div>
                                   </div>
                                   {session.status === 'closed' && session.final_amount && (
                                     <>
-                                      <div className="text-right">
+                                      <div className="bg-muted/50 rounded-lg p-2">
                                         <div className="text-xs text-muted-foreground">Final</div>
-                                        <div className="font-semibold">${session.final_amount.toFixed(2)}</div>
+                                        <div className="font-semibold text-sm">${session.final_amount.toFixed(2)}</div>
                                       </div>
-                                      <div className="text-right">
+                                      <div className="bg-muted/50 rounded-lg p-2">
                                         <div className="text-xs text-muted-foreground">Diferencia</div>
-                                        <div className={`font-bold ${(session.final_amount - session.initial_amount) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                        <div className={`font-bold text-sm ${(session.final_amount - session.initial_amount) >= 0 ? 'text-success' : 'text-destructive'}`}>
                                           ${Math.abs(session.final_amount - session.initial_amount).toFixed(2)}
                                         </div>
                                       </div>
                                     </>
                                   )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleViewSession(session)}
-                                  >
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Ver
-                                  </Button>
+                                  <div className={`${session.status === 'closed' ? '' : 'col-span-1'} flex items-end`}>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewSession(session)}
+                                      className="w-full"
+                                    >
+                                      <Eye className="w-4 h-4 mr-1 sm:mr-2" />
+                                      <span className="hidden sm:inline">Ver</span>
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             </CardContent>
@@ -847,7 +851,37 @@ export default function Reports() {
                     </div>
                   </div>
                   
-                  <div className="border rounded-lg overflow-hidden">
+                  {/* Mobile: Cards view */}
+                  <div className="space-y-3 md:hidden">
+                    {supplierSalesData.map((supplier) => (
+                      <div key={supplier.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{supplier.name}</span>
+                          <div className="flex gap-1">
+                            <Badge variant="outline" className="text-xs">{supplier.productsLinked} prod.</Badge>
+                            {supplier.pendingCount > 0 ? (
+                              <Badge variant="destructive" className="text-xs">{supplier.pendingCount} pend.</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">0</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="bg-destructive/10 rounded p-2">
+                            <div className="text-xs text-muted-foreground">Por Pagar</div>
+                            <div className="font-semibold text-destructive">${supplier.totalDebt.toFixed(2)}</div>
+                          </div>
+                          <div className="bg-success/10 rounded p-2">
+                            <div className="text-xs text-muted-foreground">Pagado</div>
+                            <div className="font-semibold text-success">${supplier.totalPaid.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Desktop: Table view */}
+                  <div className="border rounded-lg overflow-hidden hidden md:block">
                     <table className="w-full">
                       <thead className="bg-muted">
                         <tr>
