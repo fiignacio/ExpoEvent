@@ -52,6 +52,7 @@ export default function Reports() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [supplierSalesData, setSupplierSalesData] = useState<any[]>([]);
   const [loadingSupplierData, setLoadingSupplierData] = useState(false);
+  const [syncingSuppliers, setSyncingSuppliers] = useState(false);
 
   useEffect(() => {
     loadTodayZReport();
@@ -115,7 +116,7 @@ export default function Reports() {
           startDate = subDays(today, activeDays - 1);
       }
 
-      // Get suppliers with their linked products
+      // Get suppliers with their linked products (both 'supplier' and 'proveedor' types)
       const { data: suppliers, error: suppliersError } = await supabase
         .from('customers')
         .select(`
@@ -127,7 +128,7 @@ export default function Reports() {
             product:products (name, sku)
           )
         `)
-        .eq('type', 'supplier');
+        .or('type.eq.supplier,type.eq.proveedor');
 
       if (suppliersError) throw suppliersError;
 
@@ -187,6 +188,38 @@ export default function Reports() {
       fetchSupplierSales()
     ]);
     setIsRefreshing(false);
+  };
+
+  const handleSyncSupplierTransactions = async () => {
+    setSyncingSuppliers(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Debes iniciar sesión para sincronizar");
+        return;
+      }
+
+      const response = await supabase.functions.invoke('sync-supplier-transactions', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+      toast.success(`Sincronización completada: ${result.stats.transactionsCreated} transacciones creadas`);
+      
+      // Refresh supplier data
+      await fetchSupplierSales();
+    } catch (error: any) {
+      console.error("Error syncing supplier transactions:", error);
+      toast.error("Error al sincronizar: " + (error.message || "Error desconocido"));
+    } finally {
+      setSyncingSuppliers(false);
+    }
   };
 
   const handleViewSession = (session: any) => {
@@ -755,6 +788,20 @@ export default function Reports() {
         </TabsContent>
 
         <TabsContent value="suppliers">
+          <div className="mb-4">
+            <Button 
+              onClick={handleSyncSupplierTransactions}
+              disabled={syncingSuppliers}
+              variant="outline"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncingSuppliers ? 'animate-spin' : ''}`} />
+              {syncingSuppliers ? 'Sincronizando...' : 'Sincronizar Transacciones de Proveedores'}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">
+              Vincula automáticamente las ventas de la última semana a sus proveedores correspondientes
+            </p>
+          </div>
+          
           {loadingSupplierData ? (
             <Card>
               <CardContent className="p-6">
@@ -767,7 +814,7 @@ export default function Reports() {
             <Card>
               <CardContent className="p-6">
                 <div className="text-center py-8 text-muted-foreground">
-                  No hay datos de proveedores disponibles
+                  No hay datos de proveedores disponibles. Usa el botón de sincronización para vincular ventas.
                 </div>
               </CardContent>
             </Card>
