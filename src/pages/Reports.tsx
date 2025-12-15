@@ -116,7 +116,7 @@ export default function Reports() {
           startDate = subDays(today, activeDays - 1);
       }
 
-      // Get suppliers with their linked products (both 'supplier' and 'proveedor' types)
+      // Get suppliers with their linked products
       const { data: suppliers, error: suppliersError } = await supabase
         .from('customers')
         .select(`
@@ -128,7 +128,7 @@ export default function Reports() {
             product:products (name, sku)
           )
         `)
-        .or('type.eq.supplier,type.eq.proveedor');
+        .eq('type', 'proveedor');
 
       if (suppliersError) throw suppliersError;
 

@@ -540,7 +540,7 @@ export default function POS() {
 
           cart.forEach(item => {
             const linkedProduct = customerProducts.find(
-              (cp: any) => cp.product_id === item.id && (cp.customer.type === 'supplier' || cp.customer.type === 'proveedor')
+              (cp: any) => cp.product_id === item.id && cp.customer.type === 'proveedor'
             );
 
             if (linkedProduct) {
