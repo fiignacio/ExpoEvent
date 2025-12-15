@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -273,7 +273,7 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>Detalle de Sesión de Caja</DialogTitle>
           <DialogDescription>
@@ -281,7 +281,7 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 pr-4">
+        <div className="flex-1 overflow-y-auto pr-2 pb-4">
           <div className="space-y-6">
             {/* Resumen de la Sesión */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -619,7 +619,7 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
