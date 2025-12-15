@@ -97,19 +97,21 @@ export default function Customers() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 pb-24 md:pb-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Clientes y Proveedores</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Clientes y Proveedores</h1>
+          <p className="text-muted-foreground mt-1 text-xs sm:text-sm">
             Gestiona clientes, proveedores y sus transacciones
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm}>
+            <Button onClick={resetForm} size="sm" className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
-              Nuevo Cliente/Proveedor
+              <span className="sm:hidden">Nuevo</span>
+              <span className="hidden sm:inline">Nuevo Cliente/Proveedor</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
@@ -211,68 +213,79 @@ export default function Customers() {
       </div>
 
       <Tabs defaultValue="list" className="w-full">
-        <TabsList>
-          <TabsTrigger value="list">Lista</TabsTrigger>
-          <TabsTrigger value="debts">Deudas Pendientes</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="list" className="text-xs sm:text-sm">Lista</TabsTrigger>
+            <TabsTrigger value="debts" className="text-xs sm:text-sm">Deudas Pendientes</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="list">
           <Card>
-            <CardHeader>
-              <CardTitle>Clientes y Proveedores</CardTitle>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Clientes y Proveedores</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Teléfono</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customers.map((customer) => (
-                    <TableRow
-                      key={customer.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedCustomer(customer)}
-                    >
-                      <TableCell className="font-medium">{customer.name}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            customer.type === "customer" ? "default" : "secondary"
-                          }
-                        >
-                          {customer.type === "customer" ? "Cliente" : "Proveedor"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{customer.email || "-"}</TableCell>
-                      <TableCell>{customer.phone || "-"}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(customer)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => deleteCustomer(customer.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <CardContent className="p-0 sm:p-6 pt-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Tipo</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Email</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Teléfono</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {customers.map((customer) => (
+                      <TableRow
+                        key={customer.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedCustomer(customer)}
+                      >
+                        <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">
+                          {customer.name}
+                        </TableCell>
+                        <TableCell className="py-2 sm:py-4">
+                          <Badge
+                            variant={customer.type === "customer" ? "default" : "secondary"}
+                            className="text-[10px] sm:text-xs"
+                          >
+                            {customer.type === "customer" ? "Cliente" : "Proveedor"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell py-2 sm:py-4">
+                          {customer.email || "-"}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden md:table-cell py-2 sm:py-4">
+                          {customer.phone || "-"}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="py-2 sm:py-4">
+                          <div className="flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleEdit(customer)}
+                              className="h-7 w-7 sm:h-8 sm:w-8"
+                            >
+                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => deleteCustomer(customer.id)}
+                              className="h-7 w-7 sm:h-8 sm:w-8"
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -430,32 +443,37 @@ function CustomerDetail({
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-start">
+    <Card className="mt-4">
+      <CardHeader className="p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
           <div>
-            <CardTitle>{customer.name}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <CardTitle className="text-lg sm:text-xl">{customer.name}</CardTitle>
+            <Badge variant={customer.type === "customer" ? "default" : "secondary"} className="mt-1 text-xs">
               {customer.type === "customer" ? "Cliente" : "Proveedor"}
-            </p>
+            </Badge>
           </div>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" size="sm" onClick={onClose} className="w-full sm:w-auto">
+            <X className="w-4 h-4 mr-2 sm:hidden" />
             Cerrar
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-2 sm:p-6 pt-0">
         <Tabs defaultValue="products">
-          <TabsList>
-            <TabsTrigger value="products">
-              <Package className="w-4 h-4 mr-2" />
-              Productos
-            </TabsTrigger>
-            <TabsTrigger value="transactions">
-              <Receipt className="w-4 h-4 mr-2" />
-              Transacciones
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="products" className="text-xs sm:text-sm">
+                <Package className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Productos</span>
+                <span className="sm:hidden">Prod.</span>
+              </TabsTrigger>
+              <TabsTrigger value="transactions" className="text-xs sm:text-sm">
+                <Receipt className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Transacciones</span>
+                <span className="sm:hidden">Trans.</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="products" className="space-y-4">
             <div className="flex flex-wrap justify-between items-center gap-2">
