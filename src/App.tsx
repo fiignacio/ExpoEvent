@@ -1,26 +1,28 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import Dashboard from "./pages/Dashboard";
-import POS from "./pages/POS";
-import Inventory from "./pages/Inventory";
-import Customers from "./pages/Customers";
-import CustomerDashboard from "./pages/CustomerDashboard";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Users from "./pages/Users";
-import AccessCodes from "./pages/AccessCodes";
-import Auth from "./pages/Auth";
-import CreateTestUsers from "./pages/CreateTestUsers";
-import InstallPWA from "./pages/InstallPWA";
-import NotFound from "./pages/NotFound";
+import { PageLoader } from "@/components/PageLoader";
+import { queryClient } from "@/lib/queryClient";
 
-const queryClient = new QueryClient();
+// Lazy load de páginas para code splitting
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const POS = lazy(() => import("./pages/POS"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Customers = lazy(() => import("./pages/Customers"));
+const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Users = lazy(() => import("./pages/Users"));
+const AccessCodes = lazy(() => import("./pages/AccessCodes"));
+const Auth = lazy(() => import("./pages/Auth"));
+const CreateTestUsers = lazy(() => import("./pages/CreateTestUsers"));
+const InstallPWA = lazy(() => import("./pages/InstallPWA"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
   const { user, role, loading } = useAuth();
@@ -57,11 +59,13 @@ const AppRoutes = () => {
 
   if (!user) {
     return (
-      <Routes>
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/setup" element={<CreateTestUsers />} />
-        <Route path="*" element={<Navigate to="/auth" replace />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/setup" element={<CreateTestUsers />} />
+          <Route path="*" element={<Navigate to="/auth" replace />} />
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -74,20 +78,22 @@ const AppRoutes = () => {
       
       {/* Main content con padding responsive */}
       <main className="flex-1 w-full md:ml-64 p-4 md:p-6 lg:p-8">
-        <Routes>
-          <Route path="/auth" element={<Navigate to="/" replace />} />
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/pos" element={<ProtectedRoute><POS /></ProtectedRoute>} />
-          <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-          <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-          <Route path="/customer-dashboard" element={<ProtectedRoute><CustomerDashboard /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-          <Route path="/install" element={<ProtectedRoute><InstallPWA /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
-          <Route path="/access-codes" element={<ProtectedRoute adminOnly><AccessCodes /></ProtectedRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/auth" element={<Navigate to="/" replace />} />
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/pos" element={<ProtectedRoute><POS /></ProtectedRoute>} />
+            <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+            <Route path="/customer-dashboard" element={<ProtectedRoute><CustomerDashboard /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/install" element={<ProtectedRoute><InstallPWA /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            <Route path="/access-codes" element={<ProtectedRoute adminOnly><AccessCodes /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* Mobile bottom navigation */}
