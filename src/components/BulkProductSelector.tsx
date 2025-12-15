@@ -138,9 +138,9 @@ export function BulkProductSelector({
     filteredProducts.every((p) => selectedProducts.has(p.id));
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col max-h-[70vh]">
       {/* Filters */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="space-y-2">
           <Label>Categoría</Label>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -173,7 +173,7 @@ export function BulkProductSelector({
 
       {/* Info banner for suppliers */}
       {isSupplier && (
-        <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="flex items-start gap-2 p-3 mb-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
           <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-blue-700 dark:text-blue-300">
             El monto que ingreses es lo que el proveedor recibirá por cada venta de este producto. Se generará una deuda automáticamente al realizar ventas.
@@ -182,7 +182,7 @@ export function BulkProductSelector({
       )}
 
       {/* Selection summary */}
-      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3 mb-4">
         <div className="flex items-center gap-2">
           <Package className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm">
@@ -203,8 +203,8 @@ export function BulkProductSelector({
         )}
       </div>
 
-      {/* Product list */}
-      <ScrollArea className="h-[300px] border rounded-lg">
+      {/* Product list - scrollable */}
+      <ScrollArea className="flex-1 min-h-0 max-h-[200px] sm:max-h-[300px] border rounded-lg mb-4">
         <div className="p-2 space-y-1">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -260,8 +260,8 @@ export function BulkProductSelector({
         </div>
       </ScrollArea>
 
-      {/* Actions */}
-      <div className="flex gap-2 justify-end pt-2">
+      {/* Actions - sticky footer */}
+      <div className="flex gap-2 justify-end pt-2 border-t bg-background sticky bottom-0">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancelar
         </Button>
