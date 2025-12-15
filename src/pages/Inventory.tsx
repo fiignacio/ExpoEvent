@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Edit, Trash2, Package, Tag, Save, RefreshCw } from "lucide-react";
+import { Search, Edit, Trash2, Package, Tag, Save, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,51 +106,65 @@ export default function Inventory() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 pb-24 md:pb-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Inventario</h1>
-          <p className="text-muted-foreground mt-1 text-sm md:text-base">Gestiona tu catálogo de productos</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Inventario</h1>
+          <p className="text-muted-foreground mt-1 text-xs sm:text-sm md:text-base">
+            Gestiona tu catálogo de productos
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        
+        {/* Action Buttons - Responsive Grid */}
+        <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
           <Button 
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={refresh}
             title="Actualizar inventario"
+            className="h-9"
           >
             <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline ml-2">Actualizar</span>
           </Button>
+          
           {editMode && (
             <>
               <Button 
                 variant="default"
+                size="sm"
                 onClick={handleSavePendingChanges}
                 disabled={pendingChanges.size === 0}
-                className="text-sm"
+                className="h-9"
               >
-                <Save className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Guardar ({pendingChanges.size})</span>
+                <Save className="w-4 h-4" />
+                <span className="hidden sm:inline ml-2">Guardar ({pendingChanges.size})</span>
               </Button>
               <Button 
                 variant="outline"
+                size="sm"
                 onClick={handleCancelChanges}
-                className="text-sm"
+                className="h-9"
               >
-                <span className="hidden md:inline">Cancelar</span>
-                <span className="md:hidden">✕</span>
+                <X className="w-4 h-4 sm:hidden" />
+                <span className="hidden sm:inline">Cancelar</span>
               </Button>
             </>
           )}
+          
           <Button 
             variant={editMode ? "secondary" : "outline"}
+            size="sm"
             onClick={() => setEditMode(!editMode)}
-            className="text-sm"
+            className="h-9"
           >
-            <Edit className="w-4 h-4 md:mr-2" />
-            <span className="hidden md:inline">{editMode ? "Modo Edición" : "Edición Rápida"}</span>
+            <Edit className="w-4 h-4" />
+            <span className="hidden sm:inline ml-2">{editMode ? "Editando" : "Editar"}</span>
           </Button>
+          
           <ExcelImport onImport={handleBulkImport} />
+          
           <ProductDialog 
             onSave={handleAddProduct}
             product={editingProduct}
@@ -160,45 +174,50 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      {/* Stats Cards - Responsive */}
+      <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Total Productos</p>
-                <p className="text-xl md:text-2xl font-bold mt-1">{products.length}</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground truncate">
+                  Total Productos
+                </p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold mt-0.5 sm:mt-1">
+                  {products.length}
+                </p>
               </div>
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <Package className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 md:p-6">
+          <CardContent className="p-3 sm:p-4 md:p-6">
             <div>
-              <p className="text-xs md:text-sm text-muted-foreground">Valor Total</p>
-              <p className="text-xl md:text-2xl font-bold mt-1 text-success">
+              <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">Valor Total</p>
+              <p className="text-base sm:text-lg md:text-xl font-bold mt-0.5 sm:mt-1 text-success truncate">
                 ${products.reduce((sum, item) => sum + (item.stock * item.cost), 0).toLocaleString('es-CL')}
               </p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 md:p-6">
+          <CardContent className="p-3 sm:p-4 md:p-6">
             <div>
-              <p className="text-xs md:text-sm text-muted-foreground">Stock Bajo</p>
-              <p className="text-xl md:text-2xl font-bold mt-1 text-destructive">
+              <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">Stock Bajo</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold mt-0.5 sm:mt-1 text-destructive">
                 {products.filter(item => item.stock < 10).length}
               </p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 md:p-6">
+          <CardContent className="p-3 sm:p-4 md:p-6">
             <div>
-              <p className="text-xs md:text-sm text-muted-foreground">Categorías</p>
-              <p className="text-xl md:text-2xl font-bold mt-1">
+              <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">Categorías</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold mt-0.5 sm:mt-1">
                 {new Set(products.map(item => item.category)).size}
               </p>
             </div>
