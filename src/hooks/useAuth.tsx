@@ -127,49 +127,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { user_id, role, user_name, email } = codeData[0];
 
-      // Si el usuario ya existe, iniciar sesión directamente
-      if (user_id) {
-        console.log("Usuario existente, iniciando sesión con rol:", role);
-        
-        // PRIMERO: Sincronizar el rol correcto ANTES de iniciar sesión
-        const { error: syncError } = await supabase
-          .rpc('sync_role_on_login', { _email: email, _role: role });
-
-        if (syncError) {
-          console.error("Error sincronizando rol:", syncError);
-        }
-        
-        // Limpiar estado antes de iniciar sesión
-        setProfile(null);
-        setRole(null);
-        
-        // Extraer identificador del email (formato: user_UUID@pos.internal)
-        const emailIdentifier = email.split('@')[0].replace('user_', '');
-        const password = `pass_${emailIdentifier}_secure`;
-        
-        const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (signInError) {
-          toast.error("Error al iniciar sesión");
-          return { error: signInError };
-        }
-
-        console.log("Login exitoso, recargando datos del usuario");
-
-        toast.success(`Bienvenido, ${user_name}`);
-        navigate("/");
-        return { error: null };
-      }
-
-      // Si el usuario no existe en profiles, intentar crear o iniciar sesión
       // Extraer identificador del email (formato: user_UUID@pos.internal)
       const emailIdentifier = email.split('@')[0].replace('user_', '');
       const password = `pass_${emailIdentifier}_secure`;
-      
-      // Primero intentar iniciar sesión (el usuario podría existir en auth pero no en profiles)
+
+      // Limpiar estado antes de cualquier operación
+      setProfile(null);
+      setRole(null);
+
+      // Intentar iniciar sesión primero
       const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -177,19 +143,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!signInError && signInData.user) {
         // Login exitoso - sincronizar rol
-        const { error: syncError } = await supabase
-          .rpc('sync_role_on_login', { _email: email, _role: role });
-
-        if (syncError) {
-          console.error("Error sincronizando rol:", syncError);
-        }
-
+        await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
         toast.success(`Bienvenido, ${user_name}`);
         navigate("/");
         return { error: null };
       }
 
       // Si falló el login, intentar crear el usuario
+      console.log("Creando nuevo usuario con credenciales seguras...");
+      
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -197,13 +159,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: user_name,
-            username: code,
+            username: emailIdentifier,
           },
         },
       });
 
       if (signUpError) {
-        // Si el error es "User already registered", intentar login de nuevo
         if (signUpError.message.includes("already registered")) {
           toast.error("Error de autenticación. Contacta al administrador.");
           return { error: signUpError };
@@ -212,9 +173,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: signUpError };
       }
 
-      // Si el usuario fue creado, asignar el rol correcto desde el código
+      // Si el usuario fue creado, asignar el rol correcto
       if (signUpData.user) {
-        // Esperar un momento para que se cree el perfil y el rol por defecto
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Eliminar el rol por defecto y crear el rol correcto
@@ -223,12 +183,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .delete()
           .eq('user_id', signUpData.user.id);
 
-        const { error: roleError } = await supabase
+        await supabase
           .from('user_roles')
           .insert({ user_id: signUpData.user.id, role });
 
-        if (roleError) {
-          console.error("Error asignando rol:", roleError);
+        // Actualizar el perfil existente si había uno (migración)
+        if (user_id) {
+          await supabase
+            .from('profiles')
+            .update({ user_id: signUpData.user.id })
+            .eq('email', email);
         }
       }
 
