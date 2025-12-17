@@ -163,9 +163,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: null };
       }
 
-      // Si el usuario no existe, crearlo
+      // Si el usuario no existe en profiles, intentar crear o iniciar sesión
       const password = `code_${code}_pass`;
       
+      // Primero intentar iniciar sesión (el usuario podría existir en auth pero no en profiles)
+      const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (!signInError && signInData.user) {
+        // Login exitoso - sincronizar rol
+        const { error: syncError } = await supabase
+          .rpc('sync_role_on_login', { _email: email, _role: role });
+
+        if (syncError) {
+          console.error("Error sincronizando rol:", syncError);
+        }
+
+        toast.success(`Bienvenido, ${user_name}`);
+        navigate("/");
+        return { error: null };
+      }
+
+      // Si falló el login, intentar crear el usuario
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -179,6 +200,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (signUpError) {
+        // Si el error es "User already registered", intentar login de nuevo
+        if (signUpError.message.includes("already registered")) {
+          toast.error("Error de autenticación. Contacta al administrador.");
+          return { error: signUpError };
+        }
         toast.error("Error al crear sesión: " + signUpError.message);
         return { error: signUpError };
       }
