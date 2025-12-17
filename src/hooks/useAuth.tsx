@@ -143,8 +143,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
         setRole(null);
         
-        // Generar contraseña basada en el código
-        const password = `code_${code}_pass`;
+        // Extraer identificador del email (formato: user_UUID@pos.internal)
+        const emailIdentifier = email.split('@')[0].replace('user_', '');
+        const password = `pass_${emailIdentifier}_secure`;
         
         const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
           email,
@@ -164,7 +165,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Si el usuario no existe en profiles, intentar crear o iniciar sesión
-      const password = `code_${code}_pass`;
+      // Extraer identificador del email (formato: user_UUID@pos.internal)
+      const emailIdentifier = email.split('@')[0].replace('user_', '');
+      const password = `pass_${emailIdentifier}_secure`;
       
       // Primero intentar iniciar sesión (el usuario podría existir en auth pero no en profiles)
       const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
