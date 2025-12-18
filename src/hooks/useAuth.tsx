@@ -173,27 +173,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: signUpError };
       }
 
-      // Si el usuario fue creado, asignar el rol correcto
+      // Si el usuario fue creado, asignar el rol correcto usando función con SECURITY DEFINER
       if (signUpData.user) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Eliminar el rol por defecto y crear el rol correcto
-        await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', signUpData.user.id);
-
-        await supabase
-          .from('user_roles')
-          .insert({ user_id: signUpData.user.id, role });
-
-        // Actualizar el perfil existente si había uno (migración)
-        if (user_id) {
-          await supabase
-            .from('profiles')
-            .update({ user_id: signUpData.user.id })
-            .eq('email', email);
-        }
+        // Usar sync_role_on_login que tiene SECURITY DEFINER y puede saltar RLS
+        await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
       }
 
       toast.success(`Bienvenido, ${user_name}`);
