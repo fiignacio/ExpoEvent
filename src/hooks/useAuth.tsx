@@ -127,9 +127,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { user_id, role, user_name, email } = codeData[0];
 
-      // Extraer identificador del email (formato: user_UUID@pos.internal)
+      // Generar contraseña consistente basada en el email
       const emailIdentifier = email.split('@')[0].replace('user_', '');
-      const password = `pass_${emailIdentifier}_secure`;
+      const password = `pos_secure_${emailIdentifier}`;
+
+      console.log("Attempting login for:", email);
 
       // Limpiar estado antes de cualquier operación
       setProfile(null);
@@ -142,15 +144,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (!signInError && signInData.user) {
-        // Login exitoso - sincronizar rol
+        // Login exitoso
+        console.log("Login successful");
         await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
         toast.success(`Bienvenido, ${user_name}`);
         navigate("/");
         return { error: null };
       }
 
-      // Si falló el login, intentar crear el usuario
-      console.log("Creando nuevo usuario con credenciales seguras...");
+      console.log("Login failed, checking if user exists...");
+
+      // Si falló el login, verificar si el usuario existe
+      // Intentar resetear la contraseña usando el edge function
+      try {
+        const response = await supabase.functions.invoke('reset-user-password', {
+          body: { email, newPassword: password }
+        });
+
+        if (response.error) {
+          console.log("Reset password response error:", response.error);
+        }
+
+        if (response.data?.success) {
+          console.log("Password reset successful, trying login again");
+          // Intentar login de nuevo con la nueva contraseña
+          const { error: retryError, data: retryData } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (!retryError && retryData.user) {
+            await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
+            toast.success(`Bienvenido, ${user_name}`);
+            navigate("/");
+            return { error: null };
+          }
+        } else if (response.data?.code === 'USER_NOT_FOUND') {
+          console.log("User not found, creating new user");
+        }
+      } catch (resetError) {
+        console.log("Reset password call failed:", resetError);
+      }
+
+      // Si el usuario no existe, crear uno nuevo
+      console.log("Creating new user with email:", email);
       
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -166,25 +203,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (signUpError) {
         if (signUpError.message.includes("already registered")) {
-          toast.error("Error de autenticación. Contacta al administrador.");
+          // El usuario existe pero no pudimos resetear la contraseña
+          // Intentar eliminar y recrear
+          console.log("User exists but password reset failed");
+          toast.error("Error de credenciales. Contacta al administrador para resetear tu cuenta.");
           return { error: signUpError };
         }
         toast.error("Error al crear sesión: " + signUpError.message);
         return { error: signUpError };
       }
 
-      // Si el usuario fue creado, asignar el rol correcto usando función con SECURITY DEFINER
+      // Si el usuario fue creado, asignar el rol correcto
       if (signUpData.user) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Usar sync_role_on_login que tiene SECURITY DEFINER y puede saltar RLS
+        await new Promise(resolve => setTimeout(resolve, 500));
         await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
+        
+        toast.success(`Bienvenido, ${user_name}`);
+        navigate("/");
       }
 
-      toast.success(`Bienvenido, ${user_name}`);
-      navigate("/");
       return { error: null };
     } catch (error: any) {
+      console.error("SignInWithCode error:", error);
       toast.error("Error al iniciar sesión");
       return { error };
     }
