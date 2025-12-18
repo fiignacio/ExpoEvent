@@ -71,9 +71,9 @@ export const Navigation = () => {
     : [navItems[0]]; // Solo Dashboard mientras cargan permisos
 
   if (isMobile) {
-    const visibleItems = filteredNavItems.slice(0, 4);
-    const hiddenItems = filteredNavItems.slice(4);
-    const showMoreButton = hiddenItems.length > 0 || !hasPermissions;
+    // Solo mostrar 3 items para garantizar espacio para el botón "Más"
+    const visibleItems = filteredNavItems.slice(0, 3);
+    const hiddenItems = filteredNavItems.slice(3);
 
     return (
       <nav className="flex justify-around items-center w-full">
