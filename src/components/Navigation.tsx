@@ -64,13 +64,16 @@ export const Navigation = () => {
     fetchPermissions();
   }, [role]);
 
-  const filteredNavItems = navItems.filter(
-    (item) => permissions[item.key] === true
-  );
+  // Si no hay permisos cargados aún, mostrar al menos Dashboard
+  const hasPermissions = Object.keys(permissions).length > 0;
+  const filteredNavItems = hasPermissions 
+    ? navItems.filter((item) => permissions[item.key] === true)
+    : [navItems[0]]; // Solo Dashboard mientras cargan permisos
 
   if (isMobile) {
     const visibleItems = filteredNavItems.slice(0, 4);
     const hiddenItems = filteredNavItems.slice(4);
+    const showMoreButton = hiddenItems.length > 0 || !hasPermissions;
 
     return (
       <nav className="flex justify-around items-center w-full">
@@ -95,6 +98,7 @@ export const Navigation = () => {
           );
         })}
         
+        {/* Siempre mostrar el botón Más para acceder al logout */}
         <Sheet>
           <SheetTrigger asChild>
             <button className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all text-muted-foreground">
