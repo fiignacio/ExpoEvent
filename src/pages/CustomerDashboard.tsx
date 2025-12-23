@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, DollarSign, Users, AlertCircle, Package } from "lucide-react";
 import { useCustomerDashboard } from "@/hooks/useCustomerDashboard";
+import { RefreshButton } from "@/components/RefreshButton";
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -19,6 +20,7 @@ export default function CustomerDashboard() {
     loading,
     getTotalReceivables,
     getTotalPayables,
+    refresh,
   } = useCustomerDashboard();
 
   if (loading) {
@@ -46,9 +48,12 @@ export default function CustomerDashboard() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-0">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard de Clientes y Proveedores</h1>
-        <p className="text-muted-foreground mt-1">Análisis de deudas y ventas</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Dashboard de Clientes y Proveedores</h1>
+          <p className="text-muted-foreground mt-1 text-xs sm:text-sm">Análisis de deudas y ventas</p>
+        </div>
+        <RefreshButton onRefresh={refresh} showText />
       </div>
 
       {/* Summary Cards */}
