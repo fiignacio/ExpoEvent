@@ -214,7 +214,7 @@ export const useCustomerProducts = (customerId?: string) => {
     }
   };
 
-  const addMultipleProducts = async (productsToAdd: { id: string; price: number; notes?: string }[]) => {
+  const addMultipleProducts = async (productsToAdd: { id: string; price: number; notes?: string }[], isSupplier: boolean = false) => {
     if (!customerId || productsToAdd.length === 0) return;
 
     try {
@@ -237,6 +237,30 @@ export const useCustomerProducts = (customerId?: string) => {
       });
 
       await fetchProducts();
+
+      // Si es un proveedor, sincronizar automáticamente las transacciones pendientes
+      if (isSupplier) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData.session) {
+            const response = await supabase.functions.invoke('sync-supplier-transactions', {
+              headers: {
+                Authorization: `Bearer ${sessionData.session.access_token}`,
+              },
+            });
+
+            if (response.data?.transactionsCreated?.length > 0) {
+              toast({
+                title: "Deudas sincronizadas",
+                description: `Se crearon ${response.data.transactionsCreated.length} transacciones por ventas previas`,
+              });
+            }
+          }
+        } catch (syncError) {
+          console.error("Error syncing supplier transactions:", syncError);
+          // No mostrar error al usuario, la sincronización es opcional
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Error",

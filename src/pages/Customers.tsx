@@ -29,7 +29,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus, RefreshCw } from "lucide-react";
+import { RefreshButton } from "@/components/RefreshButton";
 import {
   useCustomers,
   useCustomerProducts,
@@ -40,8 +41,12 @@ import { useProducts } from "@/hooks/useProducts";
 import { BulkProductSelector } from "@/components/BulkProductSelector";
 
 export default function Customers() {
-  const { customers, loading, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
-  const { products: allProducts } = useProducts();
+  const { customers, loading, addCustomer, updateCustomer, deleteCustomer, refresh: refreshCustomers } = useCustomers();
+  const { products: allProducts, refresh: refreshProducts } = useProducts();
+
+  const handleRefresh = async () => {
+    await Promise.all([refreshCustomers(), refreshProducts()]);
+  };
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -106,110 +111,113 @@ export default function Customers() {
             Gestiona clientes, proveedores y sus transacciones
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm} size="sm" className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              <span className="sm:hidden">Nuevo</span>
-              <span className="hidden sm:inline">Nuevo Cliente/Proveedor</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle>
-                {isEditMode ? "Editar" : "Nuevo"} Cliente/Proveedor
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <RefreshButton onRefresh={handleRefresh} showText />
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm} size="sm" className="flex-1 sm:flex-none">
+                <Plus className="w-4 h-4 mr-2" />
+                <span className="sm:hidden">Nuevo</span>
+                <span className="hidden sm:inline">Nuevo Cliente/Proveedor</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
+                <DialogTitle>
+                  {isEditMode ? "Editar" : "Nuevo"} Cliente/Proveedor
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nombre *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Tipo *</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value: "cliente" | "proveedor") =>
+                        setFormData({ ...formData, type: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cliente">Cliente</SelectItem>
+                        <SelectItem value="proveedor">Proveedor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Teléfono</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nombre *</Label>
+                  <Label htmlFor="address">Dirección</Label>
                   <Input
-                    id="name"
-                    value={formData.name}
+                    id="address"
+                    value={formData.address}
                     onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
+                      setFormData({ ...formData, address: e.target.value })
                     }
-                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="type">Tipo *</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: "cliente" | "proveedor") =>
-                      setFormData({ ...formData, type: value })
+                  <Label htmlFor="notes">Notas</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
                     }
+                    rows={3}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cliente">Cliente</SelectItem>
-                      <SelectItem value="proveedor">Proveedor</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    {isEditMode ? "Actualizar" : "Crear"}
+                  </Button>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Dirección</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notas</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, notes: e.target.value })
-                  }
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit">
-                  {isEditMode ? "Actualizar" : "Crear"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Tabs defaultValue="list" className="w-full">
@@ -332,7 +340,7 @@ function CustomerDetail({
   const existingProductIds = products.map((p) => p.product_id);
 
   const handleAddMultipleProducts = async (productsToAdd: { id: string; name: string; price: number }[]) => {
-    await addMultipleProducts(productsToAdd.map((p) => ({ id: p.id, price: p.price })));
+    await addMultipleProducts(productsToAdd.map((p) => ({ id: p.id, price: p.price })), customer.type === 'proveedor');
   };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
