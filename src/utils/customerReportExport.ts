@@ -38,12 +38,27 @@ export async function exportCustomerSalesReport(
 ) {
   try {
     // Default to last 30 days if no dates provided
-    const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : subDays(end, 30);
+    // Parse dates properly handling timezone - use local midnight
+    let start: Date;
+    let end: Date;
     
-    // Set end date to end of day
-    end.setHours(23, 59, 59, 999);
-    start.setHours(0, 0, 0, 0);
+    if (endDate) {
+      // Parse as local date (YYYY-MM-DD format from input type="date")
+      const [year, month, day] = endDate.split('-').map(Number);
+      end = new Date(year, month - 1, day, 23, 59, 59, 999);
+    } else {
+      end = new Date();
+      end.setHours(23, 59, 59, 999);
+    }
+    
+    if (startDate) {
+      // Parse as local date (YYYY-MM-DD format from input type="date")
+      const [year, month, day] = startDate.split('-').map(Number);
+      start = new Date(year, month - 1, day, 0, 0, 0, 0);
+    } else {
+      start = subDays(end, 30);
+      start.setHours(0, 0, 0, 0);
+    }
 
     // Get product IDs linked to this customer
     const linkedProductIds = products.map(p => p.product_id);

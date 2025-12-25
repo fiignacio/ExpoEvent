@@ -321,6 +321,7 @@ export default function Reports() {
           'Débito': `$${daySales.filter(s => s.payment_method === 'debito').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
           'Crédito': `$${daySales.filter(s => s.payment_method === 'credito').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
           'Transferencia': `$${daySales.filter(s => s.payment_method === 'transferencia').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
+          'Pago Mixto': `$${daySales.filter(s => s.payment_method === 'mixto').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
         });
       });
       const wsDaily = XLSX.utils.json_to_sheet(dailyData);
