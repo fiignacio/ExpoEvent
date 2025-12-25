@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus, RefreshCw, Download } from "lucide-react";
 import { RefreshButton } from "@/components/RefreshButton";
 import {
   useCustomers,
@@ -39,6 +39,7 @@ import {
 } from "@/hooks/useCustomers";
 import { useProducts } from "@/hooks/useProducts";
 import { BulkProductSelector } from "@/components/BulkProductSelector";
+import { exportCustomerSalesReport } from "@/utils/customerReportExport";
 
 export default function Customers() {
   const { customers, loading, addCustomer, updateCustomer, deleteCustomer, refresh: refreshCustomers } = useCustomers();
@@ -336,6 +337,22 @@ function CustomerDetail({
   const [selectedProductsForDebt, setSelectedProductsForDebt] = useState<Map<string, number>>(new Map());
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportStartDate, setReportStartDate] = useState("");
+  const [reportEndDate, setReportEndDate] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportReport = async () => {
+    setIsExporting(true);
+    await exportCustomerSalesReport(
+      customer, 
+      products, 
+      reportStartDate || undefined, 
+      reportEndDate || undefined
+    );
+    setIsExporting(false);
+    setReportDialogOpen(false);
+  };
 
   const existingProductIds = products.map((p) => p.product_id);
 
@@ -605,6 +622,72 @@ function CustomerDetail({
                       onClose={() => setProductDialogOpen(false)}
                       isSupplier={customer.type === 'proveedor'}
                     />
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={products.length === 0}>
+                      <Download className="w-4 h-4 mr-2" />
+                      <span className="hidden sm:inline">Exportar Reporte</span>
+                      <span className="sm:hidden">Reporte</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Exportar Reporte de Ventas</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Genera un reporte detallado con todas las ventas de productos vinculados a {customer.name}.
+                      </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="report-start">Fecha Inicio</Label>
+                          <Input
+                            id="report-start"
+                            type="date"
+                            value={reportStartDate}
+                            onChange={(e) => setReportStartDate(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="report-end">Fecha Fin</Label>
+                          <Input
+                            id="report-end"
+                            type="date"
+                            value={reportEndDate}
+                            onChange={(e) => setReportEndDate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Si no seleccionas fechas, se exportarán los últimos 30 días.
+                      </p>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setReportDialogOpen(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={handleExportReport}
+                          disabled={isExporting}
+                        >
+                          {isExporting ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              Exportando...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-2" />
+                              Descargar Excel
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </div>
