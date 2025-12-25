@@ -327,20 +327,32 @@ export default function Reports() {
       const wsDaily = XLSX.utils.json_to_sheet(dailyData);
       XLSX.utils.book_append_sheet(wb, wsDaily, 'Ventas por Día');
 
-      // Detailed transactions sheet
-      const transactionsData = detailedSales?.map(sale => {
+      // Fetch products for mapping
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name, sku');
+      const productsMap = new Map(products?.map(p => [p.id, { name: p.name, sku: p.sku }]));
+
+      // Detailed transactions sheet - one row per product sold
+      const transactionsData: any[] = [];
+      detailedSales?.forEach(sale => {
         const items = Array.isArray(sale.items) ? sale.items : [];
-        return {
-          Fecha: format(new Date(sale.created_at), 'PPP HH:mm', { locale: es }),
-          Usuario: profilesMap.get(sale.user_id) || 'N/A',
-          'Método de Pago': sale.payment_method,
-          Subtotal: `$${sale.subtotal.toFixed(2)}`,
-          Impuesto: `$${sale.tax.toFixed(2)}`,
-          Total: `$${sale.total.toFixed(2)}`,
-          'Vuelto': sale.change_amount ? `$${sale.change_amount.toFixed(2)}` : '$0.00',
-          'Cantidad de Items': items.length,
-        };
-      }) || [];
+        items.forEach((item: any) => {
+          const product = productsMap.get(item.id);
+          transactionsData.push({
+            Fecha: format(new Date(sale.created_at), 'PPP HH:mm', { locale: es }),
+            Usuario: profilesMap.get(sale.user_id) || 'N/A',
+            Producto: product?.name || item.name || 'Producto desconocido',
+            SKU: product?.sku || item.sku || 'N/A',
+            Cantidad: item.quantity || 1,
+            'Precio Unitario': `$${(item.price || 0).toFixed(2)}`,
+            'Subtotal Producto': `$${((item.price || 0) * (item.quantity || 1)).toFixed(2)}`,
+            'Método de Pago': sale.payment_method,
+            'Total Venta': `$${sale.total.toFixed(2)}`,
+            'ID Venta': sale.id.slice(0, 8),
+          });
+        });
+      });
       const wsTransactions = XLSX.utils.json_to_sheet(transactionsData);
       XLSX.utils.book_append_sheet(wb, wsTransactions, 'Transacciones Detalladas');
 
