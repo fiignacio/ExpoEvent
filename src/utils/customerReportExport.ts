@@ -21,12 +21,13 @@ interface Customer {
 }
 
 interface SaleItem {
-  productId: string;
+  id: string;
   name: string;
   quantity: number;
   price: number;
   total: number;
   originalPrice?: number;
+  sku?: string;
 }
 
 export async function exportCustomerSalesReport(
@@ -83,7 +84,7 @@ export async function exportCustomerSalesReport(
       
       items.forEach((item: SaleItem) => {
         // Check if this product is linked to the customer
-        const productId = item.productId;
+        const productId = item.id;
         const productInfo = productInfoMap.get(productId);
         
         if (productInfo) {
