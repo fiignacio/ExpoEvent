@@ -38,7 +38,7 @@ import { CloseCashDialog } from "@/components/CloseCashDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia";
+type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia" | "mixto";
 
 interface CartSession {
   id: string;
@@ -72,7 +72,8 @@ export default function POS() {
     efectivo: 0,
     debito: 0,
     credito: 0,
-    transferencia: 0
+    transferencia: 0,
+    mixto: 0
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [customerPrices, setCustomerPrices] = useState<Map<string, number>>(new Map());
@@ -224,7 +225,8 @@ export default function POS() {
       efectivo: 0,
       debito: 0,
       credito: 0,
-      transferencia: 0
+      transferencia: 0,
+      mixto: 0
     };
     
     sales.forEach((sale: any) => {
@@ -1018,6 +1020,16 @@ export default function POS() {
                   <Label htmlFor="transferencia" className="flex items-center gap-2 cursor-pointer flex-1">
                     <Building2 className="w-5 h-5 text-primary" />
                     <span>Transferencia</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                  <RadioGroupItem value="mixto" id="mixto" />
+                  <Label htmlFor="mixto" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <div className="flex -space-x-1">
+                      <DollarSign className="w-4 h-4 text-success" />
+                      <CreditCard className="w-4 h-4 text-primary" />
+                    </div>
+                    <span>Pago Mixto (Efectivo + Tarjeta)</span>
                   </Label>
                 </div>
               </RadioGroup>

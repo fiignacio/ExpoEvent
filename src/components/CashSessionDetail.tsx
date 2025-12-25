@@ -266,6 +266,13 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
       case 'debito':
       case 'credito':
         return <CreditCard className="w-4 h-4" />;
+      case 'mixto':
+        return (
+          <div className="flex -space-x-1">
+            <Banknote className="w-3 h-3" />
+            <CreditCard className="w-3 h-3" />
+          </div>
+        );
       default:
         return <DollarSign className="w-4 h-4" />;
     }

@@ -27,6 +27,7 @@ interface PaymentMethodTotal {
   debito: number;
   credito: number;
   transferencia: number;
+  mixto?: number;
 }
 
 interface CloseCashDialogProps {
@@ -71,16 +72,24 @@ export function CloseCashDialog({
         return <CreditCard className="w-4 h-4" />;
       case 'transferencia':
         return <Smartphone className="w-4 h-4" />;
+      case 'mixto':
+        return (
+          <div className="flex -space-x-1">
+            <Banknote className="w-3 h-3" />
+            <CreditCard className="w-3 h-3" />
+          </div>
+        );
       default:
         return <DollarSign className="w-4 h-4" />;
     }
   };
 
-  const paymentMethodLabels = {
+  const paymentMethodLabels: Record<string, string> = {
     efectivo: "Efectivo",
     debito: "Débito",
     credito: "Crédito",
-    transferencia: "Transferencia"
+    transferencia: "Transferencia",
+    mixto: "Pago Mixto"
   };
 
   return (

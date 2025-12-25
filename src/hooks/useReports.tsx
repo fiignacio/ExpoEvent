@@ -30,6 +30,7 @@ interface ZReport {
   debitTotal: number;
   creditTotal: number;
   transferTotal: number;
+  mixtoTotal: number;
   totalChange: number;
   sessions: any[];
 }
@@ -214,6 +215,7 @@ export function useReports(days: number = 7) {
       let debitTotal = 0;
       let creditTotal = 0;
       let transferTotal = 0;
+      let mixtoTotal = 0;
       let totalChange = 0;
       let totalSales = 0;
 
@@ -226,6 +228,7 @@ export function useReports(days: number = 7) {
         else if (method === 'debito') debitTotal += sale.total;
         else if (method === 'credito') creditTotal += sale.total;
         else if (method === 'transferencia') transferTotal += sale.total;
+        else if (method === 'mixto') mixtoTotal += sale.total;
       });
 
       // Enrich sessions with user names
@@ -242,6 +245,7 @@ export function useReports(days: number = 7) {
         debitTotal,
         creditTotal,
         transferTotal,
+        mixtoTotal,
         totalChange,
         sessions: enrichedSessions
       };
@@ -256,6 +260,7 @@ export function useReports(days: number = 7) {
         debitTotal: 0,
         creditTotal: 0,
         transferTotal: 0,
+        mixtoTotal: 0,
         totalChange: 0,
         sessions: []
       };
