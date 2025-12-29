@@ -93,6 +93,7 @@ export async function exportCustomerSalesReport(
     let totalQuantity = 0;
     let totalAmount = 0;
     let totalSaleValue = 0;
+    let totalStoreProfit = 0;
 
     sales?.forEach(sale => {
       const items = Array.isArray(sale.items) ? (sale.items as unknown as SaleItem[]) : [];
@@ -107,6 +108,7 @@ export async function exportCustomerSalesReport(
           const salePrice = item.price || 0;
           const commissionAmount = productInfo.price * quantity;
           const saleTotal = salePrice * quantity;
+          const storeProfit = saleTotal - commissionAmount;
           
           salesDetails.push({
             fecha: format(new Date(sale.created_at), 'dd/MM/yyyy', { locale: es }),
@@ -117,7 +119,9 @@ export async function exportCustomerSalesReport(
             precioVenta: salePrice,
             totalVenta: saleTotal,
             comisionUnitaria: productInfo.price,
-            montoCliente: commissionAmount,
+            montoProveedor: commissionAmount,
+            gananciaTiendaUnit: salePrice - productInfo.price,
+            gananciaTienda: storeProfit,
             metodoPago: sale.payment_method || 'N/A',
             ventaId: sale.id.substring(0, 8)
           });
@@ -125,6 +129,7 @@ export async function exportCustomerSalesReport(
           totalQuantity += quantity;
           totalAmount += commissionAmount;
           totalSaleValue += saleTotal;
+          totalStoreProfit += storeProfit;
         }
       });
     });
@@ -157,7 +162,8 @@ export async function exportCustomerSalesReport(
       { Campo: 'Productos Vinculados', Valor: products.length },
       { Campo: 'Total Productos Vendidos', Valor: totalQuantity },
       { Campo: 'Valor Total Ventas', Valor: `$${totalSaleValue.toFixed(2)}` },
-      { Campo: customer.type === 'proveedor' ? 'Total Comisión/Deuda' : 'Total a Cobrar', Valor: `$${totalAmount.toFixed(2)}` },
+      { Campo: customer.type === 'proveedor' ? 'Total Ganancia Proveedor' : 'Total a Cobrar', Valor: `$${totalAmount.toFixed(2)}` },
+      { Campo: 'Total Ganancia Tienda', Valor: `$${totalStoreProfit.toFixed(2)}` },
       { Campo: '', Valor: '' },
       { Campo: 'Transacciones Registradas', Valor: transactions?.length || 0 },
       { Campo: 'Pagos Realizados', Valor: transactions?.filter(t => t.status === 'paid').length || 0 },
@@ -175,8 +181,10 @@ export async function exportCustomerSalesReport(
       'Cantidad': s.cantidad,
       'Precio Venta': `$${s.precioVenta.toFixed(2)}`,
       'Total Venta': `$${s.totalVenta.toFixed(2)}`,
-      'Comisión/Monto Unit.': `$${s.comisionUnitaria.toFixed(2)}`,
-      'Monto Cliente': `$${s.montoCliente.toFixed(2)}`,
+      'Comisión Unit. Proveedor': `$${s.comisionUnitaria.toFixed(2)}`,
+      'Total Proveedor': `$${s.montoProveedor.toFixed(2)}`,
+      'Ganancia Unit. Tienda': `$${s.gananciaTiendaUnit.toFixed(2)}`,
+      'Total Ganancia Tienda': `$${s.gananciaTienda.toFixed(2)}`,
       'Método Pago': s.metodoPago,
       'ID Venta': s.ventaId
     }));
@@ -184,7 +192,7 @@ export async function exportCustomerSalesReport(
     XLSX.utils.book_append_sheet(wb, wsDetailed, 'Ventas Detalladas');
 
     // Products summary sheet
-    const productsSummary = new Map<string, { name: string; sku: string; quantity: number; salesTotal: number; commission: number }>();
+    const productsSummary = new Map<string, { name: string; sku: string; quantity: number; salesTotal: number; supplierCommission: number; storeProfit: number }>();
     
     salesDetails.forEach(s => {
       const existing = productsSummary.get(s.sku) || { 
@@ -192,11 +200,13 @@ export async function exportCustomerSalesReport(
         sku: s.sku, 
         quantity: 0, 
         salesTotal: 0, 
-        commission: 0 
+        supplierCommission: 0,
+        storeProfit: 0
       };
       existing.quantity += s.cantidad;
       existing.salesTotal += s.totalVenta;
-      existing.commission += s.montoCliente;
+      existing.supplierCommission += s.montoProveedor;
+      existing.storeProfit += s.gananciaTienda;
       productsSummary.set(s.sku, existing);
     });
 
@@ -205,19 +215,21 @@ export async function exportCustomerSalesReport(
       'SKU': p.sku,
       'Total Cantidad': p.quantity,
       'Total Ventas': `$${p.salesTotal.toFixed(2)}`,
-      'Total Comisión': `$${p.commission.toFixed(2)}`
+      'Total Proveedor': `$${p.supplierCommission.toFixed(2)}`,
+      'Total Ganancia Tienda': `$${p.storeProfit.toFixed(2)}`
     }));
     const wsProductsSummary = XLSX.utils.json_to_sheet(productsSummaryData);
     XLSX.utils.book_append_sheet(wb, wsProductsSummary, 'Resumen por Producto');
 
     // Daily summary sheet
-    const dailySummary = new Map<string, { quantity: number; salesTotal: number; commission: number }>();
+    const dailySummary = new Map<string, { quantity: number; salesTotal: number; supplierCommission: number; storeProfit: number }>();
     
     salesDetails.forEach(s => {
-      const existing = dailySummary.get(s.fecha) || { quantity: 0, salesTotal: 0, commission: 0 };
+      const existing = dailySummary.get(s.fecha) || { quantity: 0, salesTotal: 0, supplierCommission: 0, storeProfit: 0 };
       existing.quantity += s.cantidad;
       existing.salesTotal += s.totalVenta;
-      existing.commission += s.montoCliente;
+      existing.supplierCommission += s.montoProveedor;
+      existing.storeProfit += s.gananciaTienda;
       dailySummary.set(s.fecha, existing);
     });
 
@@ -225,7 +237,8 @@ export async function exportCustomerSalesReport(
       'Fecha': date,
       'Productos Vendidos': data.quantity,
       'Total Ventas': `$${data.salesTotal.toFixed(2)}`,
-      'Total Comisión': `$${data.commission.toFixed(2)}`
+      'Total Proveedor': `$${data.supplierCommission.toFixed(2)}`,
+      'Total Ganancia Tienda': `$${data.storeProfit.toFixed(2)}`
     }));
     const wsDailySummary = XLSX.utils.json_to_sheet(dailySummaryData);
     XLSX.utils.book_append_sheet(wb, wsDailySummary, 'Resumen Diario');
