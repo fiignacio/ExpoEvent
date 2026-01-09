@@ -1005,70 +1005,70 @@ export default function POS() {
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Procesar Pago</DialogTitle>
-            <DialogDescription>
-              Total a cobrar: <span className="font-bold text-lg text-success">${total.toFixed(2)}</span>
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] flex flex-col p-4 sm:p-6">
+          <DialogHeader className="flex-shrink-0 pb-2">
+            <DialogTitle className="text-base sm:text-lg">Procesar Pago</DialogTitle>
+            <DialogDescription className="text-sm">
+              Total a cobrar: <span className="font-bold text-base sm:text-lg text-success">${total.toFixed(2)}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-6">
-            <div className="space-y-4">
-              <Label>Método de Pago</Label>
+          <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6 pr-1">
+            <div className="space-y-2 sm:space-y-4">
+              <Label className="text-sm">Método de Pago</Label>
               <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="efectivo" id="efectivo" />
-                  <Label htmlFor="efectivo" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <DollarSign className="w-5 h-5 text-success" />
+                  <Label htmlFor="efectivo" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
                     <span>Efectivo</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="debito" id="debito" />
-                  <Label htmlFor="debito" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <CreditCard className="w-5 h-5 text-primary" />
+                  <Label htmlFor="debito" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     <span>Tarjeta de Débito</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="credito" id="credito" />
-                  <Label htmlFor="credito" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <CreditCard className="w-5 h-5 text-primary" />
+                  <Label htmlFor="credito" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     <span>Tarjeta de Crédito</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="transferencia" id="transferencia" />
-                  <Label htmlFor="transferencia" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <Building2 className="w-5 h-5 text-primary" />
+                  <Label htmlFor="transferencia" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     <span>Transferencia</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="mixto" id="mixto" />
-                  <Label htmlFor="mixto" className="flex items-center gap-2 cursor-pointer flex-1">
+                  <Label htmlFor="mixto" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
                     <div className="flex -space-x-1">
-                      <DollarSign className="w-4 h-4 text-success" />
-                      <CreditCard className="w-4 h-4 text-primary" />
+                      <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-success" />
+                      <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
                     </div>
-                    <span>Pago Mixto (Efectivo + Tarjeta)</span>
+                    <span className="text-xs sm:text-sm">Pago Mixto</span>
                   </Label>
                 </div>
               </RadioGroup>
             </div>
 
             {paymentMethod === "efectivo" && (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Quick Cash Buttons */}
                 <div className="space-y-2">
-                  <Label>Montos Rápidos</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <Label className="text-sm">Montos Rápidos</Label>
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                     {quickCashAmounts().map((amount) => (
                       <Button
                         key={amount}
                         type="button"
                         variant="outline"
-                        className="h-12 text-lg font-semibold"
+                        className="h-10 sm:h-12 text-sm sm:text-lg font-semibold"
                         onClick={() => {
                           setReceivedAmount(amount.toString());
                           setPayInUsd(false);
@@ -1081,23 +1081,23 @@ export default function POS() {
                   <Button
                     type="button"
                     variant="secondary"
-                    className="w-full h-12 gap-2"
+                    className="w-full h-10 sm:h-12 gap-1.5 sm:gap-2 text-xs sm:text-sm"
                     onClick={() => {
                       setReceivedAmount(Math.ceil(total).toString());
                       setPayInUsd(false);
                     }}
                   >
-                    <Banknote className="w-5 h-5" />
-                    Monto Exacto (${Math.ceil(total).toLocaleString('es-CL')})
+                    <Banknote className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="truncate">Monto Exacto (${Math.ceil(total).toLocaleString('es-CL')})</span>
                   </Button>
                 </div>
 
                 {/* USD Payment Option */}
-                <div className="space-y-3 p-3 border rounded-lg bg-muted/50">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="pay-usd" className="flex items-center gap-2 cursor-pointer">
-                      <CircleDollarSign className="w-5 h-5 text-success" />
-                      Pagar en Dólares (USD)
+                <div className="space-y-2 sm:space-y-3 p-2 sm:p-3 border rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="pay-usd" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-xs sm:text-sm">
+                      <CircleDollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-success shrink-0" />
+                      <span>Pagar en USD</span>
                     </Label>
                     <Switch
                       id="pay-usd"
@@ -1114,18 +1114,21 @@ export default function POS() {
                   
                   {payInUsd && (
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">
-                        Total: <span className="font-bold">${(total / currentRate).toFixed(2)} USD</span>
-                        <span className="text-xs ml-2">(1 USD = ${currentRate.toLocaleString('es-CL')} CLP)</span>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        <div className="flex flex-wrap gap-x-2 gap-y-1">
+                          <span>Total: <span className="font-bold">${(total / currentRate).toFixed(2)} USD</span></span>
+                          <span className="text-[10px] sm:text-xs">(1 USD = ${currentRate.toLocaleString('es-CL')} CLP)</span>
+                        </div>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <Label htmlFor="usd-amount" className="shrink-0">USD Recibido:</Label>
+                      <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 sm:items-center">
+                        <Label htmlFor="usd-amount" className="shrink-0 text-xs sm:text-sm">USD Recibido:</Label>
                         <Input
                           id="usd-amount"
                           type="number"
                           step="0.01"
                           placeholder="0.00"
                           value={usdAmount}
+                          className="h-9 sm:h-10 text-sm"
                           onChange={(e) => {
                             setUsdAmount(e.target.value);
                             const usd = parseFloat(e.target.value) || 0;
@@ -1134,7 +1137,7 @@ export default function POS() {
                         />
                       </div>
                       {usdAmount && parseFloat(usdAmount) > 0 && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           Equivale a: <span className="font-bold">${convertUsdToClp(parseFloat(usdAmount)).toLocaleString('es-CL')} CLP</span>
                         </p>
                       )}
@@ -1144,8 +1147,8 @@ export default function POS() {
 
                 {/* Regular CLP input */}
                 {!payInUsd && (
-                  <div className="space-y-2">
-                    <Label htmlFor="received">Monto Recibido (CLP)</Label>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label htmlFor="received" className="text-sm">Monto Recibido (CLP)</Label>
                     <Input
                       id="received"
                       type="number"
@@ -1153,6 +1156,7 @@ export default function POS() {
                       placeholder="0"
                       value={receivedAmount}
                       onChange={(e) => setReceivedAmount(e.target.value)}
+                      className="h-10 sm:h-11 text-base"
                       autoFocus
                     />
                   </div>
@@ -1160,31 +1164,31 @@ export default function POS() {
 
                 {/* Change Display */}
                 {receivedAmount && parseFloat(receivedAmount) >= total && (
-                  <div className="space-y-3 p-3 border rounded-lg bg-success/10">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Cambio a entregar:</span>
-                      <span className="text-xl font-bold text-success">
+                  <div className="space-y-2 sm:space-y-3 p-2 sm:p-3 border rounded-lg bg-success/10">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs sm:text-sm font-medium">Cambio a entregar:</span>
+                      <span className="text-lg sm:text-xl font-bold text-success">
                         ${(parseFloat(receivedAmount) - total).toLocaleString('es-CL')}
                       </span>
                     </div>
                     
                     {/* Change Breakdown */}
                     {parseFloat(receivedAmount) - total > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Desglose del cambio:</Label>
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <Label className="text-[10px] sm:text-xs text-muted-foreground">Desglose del cambio:</Label>
                         <div className="grid grid-cols-2 gap-1">
                           {calculateChangeBreakdown(parseFloat(receivedAmount) - total).map((item: DenominationBreakdown) => (
                             <div
                               key={item.denomination}
-                              className="flex items-center justify-between text-xs p-1.5 bg-background rounded"
+                              className="flex items-center justify-between text-[10px] sm:text-xs p-1 sm:p-1.5 bg-background rounded"
                             >
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-0.5 sm:gap-1">
                                 {item.type === 'billete' ? (
-                                  <Banknote className="w-3 h-3 text-success" />
+                                  <Banknote className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-success shrink-0" />
                                 ) : (
-                                  <CircleDollarSign className="w-3 h-3 text-muted-foreground" />
+                                  <CircleDollarSign className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-muted-foreground shrink-0" />
                                 )}
-                                ${item.denomination.toLocaleString('es-CL')}
+                                <span>${item.denomination.toLocaleString('es-CL')}</span>
                               </span>
                               <span className="font-semibold">×{item.count}</span>
                             </div>
@@ -1197,17 +1201,17 @@ export default function POS() {
               </div>
             )}
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 sticky bottom-0 bg-background pb-1">
               <Button variant="outline" onClick={() => {
                 setShowPaymentDialog(false);
                 setPayInUsd(false);
                 setUsdAmount("");
-              }} className="flex-1">
+              }} className="flex-1 h-10 sm:h-11 text-sm">
                 Cancelar
               </Button>
               <Button 
                 onClick={processPayment} 
-                className="flex-1 bg-gradient-success"
+                className="flex-1 bg-gradient-success h-10 sm:h-11 text-sm"
                 disabled={isProcessing}
               >
                 {isProcessing ? "Procesando..." : "Confirmar Pago"}
