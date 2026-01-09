@@ -193,23 +193,23 @@ export default function Settings() {
 
         {/* Configuración de Pagos en Efectivo */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Banknote className="h-5 w-5" />
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Banknote className="h-4 w-4 sm:h-5 sm:w-5" />
               Configuración de Pagos en Efectivo
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6">
             {/* Montos de Denominación Rápida */}
-            <div className="space-y-3">
-              <Label>Montos de Denominación Rápida (CLP)</Label>
-              <p className="text-sm text-muted-foreground">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-sm sm:text-base">Montos de Denominación Rápida (CLP)</Label>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Botones de acceso rápido para pagos en efectivo
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 {parseQuickAmounts().map((amount, index) => (
                   <div key={index} className="space-y-1">
-                    <Label htmlFor={`quick_amount_${index}`} className="text-xs text-muted-foreground">
+                    <Label htmlFor={`quick_amount_${index}`} className="text-[10px] sm:text-xs text-muted-foreground">
                       Botón {index + 1}
                     </Label>
                     <Input
@@ -219,6 +219,7 @@ export default function Settings() {
                       step="100"
                       value={amount}
                       onChange={(e) => updateQuickAmount(index, parseInt(e.target.value) || 0)}
+                      className="h-9 sm:h-10 text-sm"
                     />
                   </div>
                 ))}
@@ -226,14 +227,14 @@ export default function Settings() {
             </div>
 
             {/* Tipo de Cambio USD/CLP */}
-            <div className="space-y-3">
-              <Label>Tipo de Cambio USD/CLP</Label>
-              <p className="text-sm text-muted-foreground">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-sm sm:text-base">Tipo de Cambio USD/CLP</Label>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Tasa de conversión para pagos en dólares
               </p>
-              <div className="flex gap-3 items-end">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end">
                 <div className="flex-1 space-y-1">
-                  <Label htmlFor="usd_exchange_rate" className="text-xs text-muted-foreground">
+                  <Label htmlFor="usd_exchange_rate" className="text-[10px] sm:text-xs text-muted-foreground">
                     1 USD =
                   </Label>
                   <div className="flex items-center gap-2">
@@ -244,8 +245,9 @@ export default function Settings() {
                       step="1"
                       value={formData.usd_exchange_rate}
                       onChange={(e) => handleChange("usd_exchange_rate", parseFloat(e.target.value) || 950)}
+                      className="h-9 sm:h-10 text-sm"
                     />
-                    <span className="text-sm text-muted-foreground">CLP</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">CLP</span>
                   </div>
                 </div>
                 <Button
@@ -253,28 +255,28 @@ export default function Settings() {
                   variant="outline"
                   onClick={() => fetchLiveRate(true)}
                   disabled={isFetching}
-                  className="gap-2"
+                  className="gap-1.5 sm:gap-2 h-9 sm:h-10 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   {isFetching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                   ) : (
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   )}
-                  Actualizar desde API
+                  <span className="truncate">Actualizar desde API</span>
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Última actualización: {getLastUpdateText()}
               </p>
             </div>
 
             {/* Auto-fetch toggle */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="auto_fetch_exchange_rate" className="text-base">
+            <div className="flex items-center justify-between gap-2">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="auto_fetch_exchange_rate" className="text-sm sm:text-base">
                   Actualización Automática
                 </Label>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Obtener tipo de cambio automáticamente al abrir POS
                 </p>
               </div>
