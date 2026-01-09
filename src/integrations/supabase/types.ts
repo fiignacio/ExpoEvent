@@ -372,6 +372,7 @@ export type Database = {
       settings: {
         Row: {
           allow_negative_stock: boolean | null
+          auto_fetch_exchange_rate: boolean | null
           auto_print_receipt: boolean | null
           business_address: string | null
           business_email: string | null
@@ -382,14 +383,18 @@ export type Database = {
           currency_symbol: string
           enable_promotions: boolean | null
           id: string
+          last_exchange_rate_update: string | null
           low_stock_threshold: number
+          quick_cash_amounts: string | null
           receipt_footer: string | null
           require_customer_info: boolean | null
           tax_rate: number
           updated_at: string
+          usd_exchange_rate: number | null
         }
         Insert: {
           allow_negative_stock?: boolean | null
+          auto_fetch_exchange_rate?: boolean | null
           auto_print_receipt?: boolean | null
           business_address?: string | null
           business_email?: string | null
@@ -400,14 +405,18 @@ export type Database = {
           currency_symbol?: string
           enable_promotions?: boolean | null
           id?: string
+          last_exchange_rate_update?: string | null
           low_stock_threshold?: number
+          quick_cash_amounts?: string | null
           receipt_footer?: string | null
           require_customer_info?: boolean | null
           tax_rate?: number
           updated_at?: string
+          usd_exchange_rate?: number | null
         }
         Update: {
           allow_negative_stock?: boolean | null
+          auto_fetch_exchange_rate?: boolean | null
           auto_print_receipt?: boolean | null
           business_address?: string | null
           business_email?: string | null
@@ -418,11 +427,14 @@ export type Database = {
           currency_symbol?: string
           enable_promotions?: boolean | null
           id?: string
+          last_exchange_rate_update?: string | null
           low_stock_threshold?: number
+          quick_cash_amounts?: string | null
           receipt_footer?: string | null
           require_customer_info?: boolean | null
           tax_rate?: number
           updated_at?: string
+          usd_exchange_rate?: number | null
         }
         Relationships: []
       }

@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useSettings } from "@/hooks/useSettings";
-import { Store, DollarSign, Receipt, Package, Settings as SettingsIcon } from "lucide-react";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { Store, DollarSign, Receipt, Package, Settings as SettingsIcon, Banknote, RefreshCw, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function Settings() {
   const { settings, isLoading, updateSettings } = useSettings();
+  const { currentRate, isFetching, fetchLiveRate, getLastUpdateText } = useExchangeRate();
   const [formData, setFormData] = useState({
     business_name: "",
     business_address: "",
@@ -24,6 +26,9 @@ export default function Settings() {
     auto_print_receipt: false,
     require_customer_info: false,
     enable_promotions: true,
+    quick_cash_amounts: "[3000, 5000, 10000, 20000]",
+    usd_exchange_rate: 950,
+    auto_fetch_exchange_rate: false,
   });
 
   useEffect(() => {
@@ -38,13 +43,30 @@ export default function Settings() {
         currency_symbol: settings.currency_symbol,
         receipt_footer: settings.receipt_footer || "",
         low_stock_threshold: settings.low_stock_threshold,
-        allow_negative_stock: settings.allow_negative_stock,
-        auto_print_receipt: settings.auto_print_receipt,
-        require_customer_info: settings.require_customer_info,
-        enable_promotions: settings.enable_promotions,
+        allow_negative_stock: settings.allow_negative_stock ?? false,
+        auto_print_receipt: settings.auto_print_receipt ?? false,
+        require_customer_info: settings.require_customer_info ?? false,
+        enable_promotions: settings.enable_promotions ?? true,
+        quick_cash_amounts: settings.quick_cash_amounts || "[3000, 5000, 10000, 20000]",
+        usd_exchange_rate: Number(settings.usd_exchange_rate) || 950,
+        auto_fetch_exchange_rate: settings.auto_fetch_exchange_rate ?? false,
       });
     }
   }, [settings]);
+
+  const parseQuickAmounts = (): number[] => {
+    try {
+      return JSON.parse(formData.quick_cash_amounts);
+    } catch {
+      return [3000, 5000, 10000, 20000];
+    }
+  };
+
+  const updateQuickAmount = (index: number, value: number) => {
+    const amounts = parseQuickAmounts();
+    amounts[index] = value;
+    handleChange("quick_cash_amounts", JSON.stringify(amounts));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +187,102 @@ export default function Settings() {
                   onChange={(e) => handleChange("currency_symbol", e.target.value)}
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Configuración de Pagos en Efectivo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              Configuración de Pagos en Efectivo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Montos de Denominación Rápida */}
+            <div className="space-y-3">
+              <Label>Montos de Denominación Rápida (CLP)</Label>
+              <p className="text-sm text-muted-foreground">
+                Botones de acceso rápido para pagos en efectivo
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {parseQuickAmounts().map((amount, index) => (
+                  <div key={index} className="space-y-1">
+                    <Label htmlFor={`quick_amount_${index}`} className="text-xs text-muted-foreground">
+                      Botón {index + 1}
+                    </Label>
+                    <Input
+                      id={`quick_amount_${index}`}
+                      type="number"
+                      min="100"
+                      step="100"
+                      value={amount}
+                      onChange={(e) => updateQuickAmount(index, parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tipo de Cambio USD/CLP */}
+            <div className="space-y-3">
+              <Label>Tipo de Cambio USD/CLP</Label>
+              <p className="text-sm text-muted-foreground">
+                Tasa de conversión para pagos en dólares
+              </p>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="usd_exchange_rate" className="text-xs text-muted-foreground">
+                    1 USD =
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="usd_exchange_rate"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={formData.usd_exchange_rate}
+                      onChange={(e) => handleChange("usd_exchange_rate", parseFloat(e.target.value) || 950)}
+                    />
+                    <span className="text-sm text-muted-foreground">CLP</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fetchLiveRate(true)}
+                  disabled={isFetching}
+                  className="gap-2"
+                >
+                  {isFetching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Actualizar desde API
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Última actualización: {getLastUpdateText()}
+              </p>
+            </div>
+
+            {/* Auto-fetch toggle */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto_fetch_exchange_rate" className="text-base">
+                  Actualización Automática
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Obtener tipo de cambio automáticamente al abrir POS
+                </p>
+              </div>
+              <Switch
+                id="auto_fetch_exchange_rate"
+                checked={formData.auto_fetch_exchange_rate}
+                onCheckedChange={(checked) => handleChange("auto_fetch_exchange_rate", checked)}
+              />
             </div>
           </CardContent>
         </Card>
