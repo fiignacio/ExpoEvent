@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.reset-user-password]
 verify_jwt = false
+
+[functions.get-exchange-rate]
+verify_jwt = false

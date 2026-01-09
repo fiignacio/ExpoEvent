@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock, User } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock, User, Banknote, CircleDollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,9 +22,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Product, CartItem } from "@/types/product";
 import { calculatePromotionDiscount, getPromotionLabel } from "@/utils/promotions";
+import { calculateChangeBreakdown, DenominationBreakdown } from "@/utils/changeBreakdown";
 import { useProducts } from "@/hooks/useProducts";
 import { useSettings } from "@/hooks/useSettings";
 import { useCashRegister } from "@/hooks/useCashRegister";
@@ -32,6 +34,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAuth } from "@/hooks/useAuth";
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useIsMobile, useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { OpenCashDialog } from "@/components/OpenCashDialog";
 import { CloseCashDialog } from "@/components/CloseCashDialog";
@@ -56,6 +59,7 @@ export default function POS() {
   const { signOut, user } = useAuth();
   const { fetchSessionSales } = useCashSessions();
   const { customers } = useCustomers();
+  const { currentRate, convertUsdToClp, autoFetch, fetchLiveRate } = useExchangeRate();
   const isMobile = useIsMobile();
   const isMobileOrTablet = useIsMobileOrTablet();
   const [cartSessions, setCartSessions] = useState<CartSession[]>([]);
@@ -77,6 +81,24 @@ export default function POS() {
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [customerPrices, setCustomerPrices] = useState<Map<string, number>>(new Map());
+  const [payInUsd, setPayInUsd] = useState(false);
+  const [usdAmount, setUsdAmount] = useState("");
+
+  // Parse quick cash amounts from settings
+  const quickCashAmounts = (): number[] => {
+    try {
+      return JSON.parse(settings?.quick_cash_amounts || "[3000, 5000, 10000, 20000]");
+    } catch {
+      return [3000, 5000, 10000, 20000];
+    }
+  };
+
+  // Fetch exchange rate on mount if auto-fetch is enabled
+  useEffect(() => {
+    if (autoFetch && currentSession) {
+      fetchLiveRate(true);
+    }
+  }, [autoFetch, currentSession]);
 
   // Cargar precios del cliente cuando se seleccione uno
   useEffect(() => {
@@ -1036,27 +1058,151 @@ export default function POS() {
             </div>
 
             {paymentMethod === "efectivo" && (
-              <div className="space-y-2">
-                <Label htmlFor="received">Monto Recibido</Label>
-                <Input
-                  id="received"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={receivedAmount}
-                  onChange={(e) => setReceivedAmount(e.target.value)}
-                  autoFocus
-                />
+              <div className="space-y-4">
+                {/* Quick Cash Buttons */}
+                <div className="space-y-2">
+                  <Label>Montos Rápidos</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {quickCashAmounts().map((amount) => (
+                      <Button
+                        key={amount}
+                        type="button"
+                        variant="outline"
+                        className="h-12 text-lg font-semibold"
+                        onClick={() => {
+                          setReceivedAmount(amount.toString());
+                          setPayInUsd(false);
+                        }}
+                      >
+                        ${amount.toLocaleString('es-CL')}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full h-12 gap-2"
+                    onClick={() => {
+                      setReceivedAmount(Math.ceil(total).toString());
+                      setPayInUsd(false);
+                    }}
+                  >
+                    <Banknote className="w-5 h-5" />
+                    Monto Exacto (${Math.ceil(total).toLocaleString('es-CL')})
+                  </Button>
+                </div>
+
+                {/* USD Payment Option */}
+                <div className="space-y-3 p-3 border rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="pay-usd" className="flex items-center gap-2 cursor-pointer">
+                      <CircleDollarSign className="w-5 h-5 text-success" />
+                      Pagar en Dólares (USD)
+                    </Label>
+                    <Switch
+                      id="pay-usd"
+                      checked={payInUsd}
+                      onCheckedChange={(checked) => {
+                        setPayInUsd(checked);
+                        if (checked) {
+                          setReceivedAmount("");
+                          setUsdAmount("");
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {payInUsd && (
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        Total: <span className="font-bold">${(total / currentRate).toFixed(2)} USD</span>
+                        <span className="text-xs ml-2">(1 USD = ${currentRate.toLocaleString('es-CL')} CLP)</span>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <Label htmlFor="usd-amount" className="shrink-0">USD Recibido:</Label>
+                        <Input
+                          id="usd-amount"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={usdAmount}
+                          onChange={(e) => {
+                            setUsdAmount(e.target.value);
+                            const usd = parseFloat(e.target.value) || 0;
+                            setReceivedAmount(Math.round(usd * currentRate).toString());
+                          }}
+                        />
+                      </div>
+                      {usdAmount && parseFloat(usdAmount) > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          Equivale a: <span className="font-bold">${convertUsdToClp(parseFloat(usdAmount)).toLocaleString('es-CL')} CLP</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Regular CLP input */}
+                {!payInUsd && (
+                  <div className="space-y-2">
+                    <Label htmlFor="received">Monto Recibido (CLP)</Label>
+                    <Input
+                      id="received"
+                      type="number"
+                      step="1"
+                      placeholder="0"
+                      value={receivedAmount}
+                      onChange={(e) => setReceivedAmount(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                {/* Change Display */}
                 {receivedAmount && parseFloat(receivedAmount) >= total && (
-                  <p className="text-sm text-muted-foreground">
-                    Cambio: <span className="font-bold text-success">${(parseFloat(receivedAmount) - total).toFixed(2)}</span>
-                  </p>
+                  <div className="space-y-3 p-3 border rounded-lg bg-success/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Cambio a entregar:</span>
+                      <span className="text-xl font-bold text-success">
+                        ${(parseFloat(receivedAmount) - total).toLocaleString('es-CL')}
+                      </span>
+                    </div>
+                    
+                    {/* Change Breakdown */}
+                    {parseFloat(receivedAmount) - total > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Desglose del cambio:</Label>
+                        <div className="grid grid-cols-2 gap-1">
+                          {calculateChangeBreakdown(parseFloat(receivedAmount) - total).map((item: DenominationBreakdown) => (
+                            <div
+                              key={item.denomination}
+                              className="flex items-center justify-between text-xs p-1.5 bg-background rounded"
+                            >
+                              <span className="flex items-center gap-1">
+                                {item.type === 'billete' ? (
+                                  <Banknote className="w-3 h-3 text-success" />
+                                ) : (
+                                  <CircleDollarSign className="w-3 h-3 text-muted-foreground" />
+                                )}
+                                ${item.denomination.toLocaleString('es-CL')}
+                              </span>
+                              <span className="font-semibold">×{item.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowPaymentDialog(false)} className="flex-1">
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={() => {
+                setShowPaymentDialog(false);
+                setPayInUsd(false);
+                setUsdAmount("");
+              }} className="flex-1">
                 Cancelar
               </Button>
               <Button 

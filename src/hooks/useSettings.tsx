@@ -17,6 +17,10 @@ export interface Settings {
   auto_print_receipt: boolean;
   require_customer_info: boolean;
   enable_promotions: boolean;
+  quick_cash_amounts: string;
+  usd_exchange_rate: number;
+  auto_fetch_exchange_rate: boolean;
+  last_exchange_rate_update: string | null;
 }
 
 export const useSettings = () => {
