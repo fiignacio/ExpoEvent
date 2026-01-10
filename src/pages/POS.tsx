@@ -1060,45 +1060,45 @@ export default function POS() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6 pr-1">
-            <div className="space-y-2 sm:space-y-4">
-              <Label className="text-sm">Método de Pago</Label>
-              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
-                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
+            <div className="space-y-1.5 sm:space-y-4">
+              <Label className="text-xs sm:text-sm">Método de Pago</Label>
+              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} className="grid grid-cols-2 sm:grid-cols-1 gap-1.5 sm:gap-2">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="efectivo" id="efectivo" />
-                  <Label htmlFor="efectivo" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
-                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                  <Label htmlFor="efectivo" className="flex items-center gap-1 sm:gap-2 cursor-pointer flex-1 text-xs sm:text-sm">
+                    <DollarSign className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-success" />
                     <span>Efectivo</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="debito" id="debito" />
-                  <Label htmlFor="debito" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
-                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                    <span>Tarjeta de Débito</span>
+                  <Label htmlFor="debito" className="flex items-center gap-1 sm:gap-2 cursor-pointer flex-1 text-xs sm:text-sm">
+                    <CreditCard className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+                    <span>Débito</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="credito" id="credito" />
-                  <Label htmlFor="credito" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
-                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                    <span>Tarjeta de Crédito</span>
+                  <Label htmlFor="credito" className="flex items-center gap-1 sm:gap-2 cursor-pointer flex-1 text-xs sm:text-sm">
+                    <CreditCard className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+                    <span>Crédito</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
                   <RadioGroupItem value="transferencia" id="transferencia" />
-                  <Label htmlFor="transferencia" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
-                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                    <span>Transferencia</span>
+                  <Label htmlFor="transferencia" className="flex items-center gap-1 sm:gap-2 cursor-pointer flex-1 text-xs sm:text-sm">
+                    <Building2 className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary" />
+                    <span>Transfer.</span>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-3 rounded-lg border hover:bg-accent cursor-pointer col-span-2 sm:col-span-1">
                   <RadioGroupItem value="mixto" id="mixto" />
-                  <Label htmlFor="mixto" className="flex items-center gap-2 cursor-pointer flex-1 text-sm">
+                  <Label htmlFor="mixto" className="flex items-center gap-1 sm:gap-2 cursor-pointer flex-1 text-xs sm:text-sm">
                     <div className="flex -space-x-1">
                       <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-success" />
                       <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
                     </div>
-                    <span className="text-xs sm:text-sm">Pago Mixto</span>
+                    <span>Pago Mixto (Efectivo + Tarjeta)</span>
                   </Label>
                 </div>
               </RadioGroup>
