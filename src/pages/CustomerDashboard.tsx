@@ -47,7 +47,7 @@ export default function CustomerDashboard() {
   const netBalance = totalReceivables - totalPayables;
 
   return (
-    <div className="space-y-6 pb-20 md:pb-0">
+    <div className="space-y-4 sm:space-y-6 pb-20 md:pb-0 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Dashboard de Clientes y Proveedores</h1>
@@ -56,67 +56,71 @@ export default function CustomerDashboard() {
         <RefreshButton onRefresh={refresh} showText />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
+      {/* Summary Cards - Responsive */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Por Cobrar</p>
-                <p className="text-2xl font-bold text-success mt-1">${totalReceivables.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{receivables.length} clientes</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-success flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Por Pagar</p>
-                <p className="text-2xl font-bold text-destructive mt-1">${totalPayables.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{payables.length} proveedores</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-danger flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Balance Neto</p>
-                <p className={`text-2xl font-bold mt-1 ${netBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  ${Math.abs(netBalance).toFixed(2)}
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Por Cobrar</p>
+                <p className="text-base sm:text-lg md:text-2xl font-bold text-success mt-1 truncate">
+                  ${totalReceivables.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{receivables.length} clientes</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-success flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Por Pagar</p>
+                <p className="text-base sm:text-lg md:text-2xl font-bold text-destructive mt-1 truncate">
+                  ${totalPayables.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{payables.length} proveedores</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-danger flex items-center justify-center shrink-0">
+                <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Balance Neto</p>
+                <p className={`text-base sm:text-lg md:text-2xl font-bold mt-1 truncate ${netBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  ${Math.abs(netBalance).toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                   {netBalance >= 0 ? 'A favor' : 'En contra'}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center shrink-0">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Clientes/Proveedores</p>
-                <p className="text-2xl font-bold mt-1">{receivables.length + payables.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">Con deudas pendientes</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">Total Clientes</p>
+                <p className="text-base sm:text-lg md:text-2xl font-bold mt-1">{receivables.length + payables.length}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Con deudas</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-accent flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gradient-accent flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </CardContent>
