@@ -421,15 +421,18 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6 pb-24 sm:pb-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 pb-24 sm:pb-6">
+      {/* Header Section - Responsive */}
+      <div className="space-y-3 sm:space-y-4">
         <div>
-          <h1 className="text-3xl font-bold">Reportes y Analytics</h1>
-          <p className="text-muted-foreground mt-1">Análisis detallado de tu negocio</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Reportes y Analytics</h1>
+          <p className="text-sm text-muted-foreground mt-1">Análisis detallado de tu negocio</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        
+        {/* Filters - Stack on mobile, wrap on tablet */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
           <Select value={periodType} onValueChange={(v: PeriodType) => setPeriodType(v)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -441,112 +444,123 @@ export default function Reports() {
               <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
+          
           {periodType === "custom" && (
             <>
               <Input
                 type="date"
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="w-36"
+                className="w-full sm:w-32 text-sm"
               />
-              <span className="text-muted-foreground">-</span>
               <Input
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="w-36"
+                className="w-full sm:w-32 text-sm"
               />
             </>
           )}
+          
           <Button 
             variant="outline" 
             onClick={handleRefresh} 
             disabled={isRefreshing || reportsLoading}
+            size="sm"
+            className="h-9 sm:h-10"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Actualizar
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline ml-2">Actualizar</span>
           </Button>
+          
           <Button 
             onClick={exportToExcel}
             disabled={reportsLoading}
+            size="sm"
+            className="h-9 sm:h-10"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Exportar a Excel
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline ml-2">Exportar</span>
           </Button>
         </div>
       </div>
 
+      {/* Stats Cards - Responsive Grid */}
       {reportsLoading ? (
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4">
                 <div className="animate-pulse space-y-2">
-                  <div className="h-4 bg-muted rounded w-24"></div>
-                  <div className="h-8 bg-muted rounded w-32"></div>
-                  <div className="h-3 bg-muted rounded w-20"></div>
+                  <div className="h-3 bg-muted rounded w-16 sm:w-24"></div>
+                  <div className="h-6 bg-muted rounded w-20 sm:w-32"></div>
+                  <div className="h-2 bg-muted rounded w-12 sm:w-20"></div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ventas Totales</p>
-                  <p className="text-2xl font-bold text-success mt-1">${totalSales.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{getPeriodLabel()}</p>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Ventas Totales</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold text-success mt-0.5 sm:mt-1 truncate">
+                    ${totalSales.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{getPeriodLabel()}</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-gradient-success flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-success flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Transacciones</p>
-                  <p className="text-2xl font-bold mt-1">{totalTransactions}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{getPeriodLabel()}</p>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Transacciones</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold mt-0.5 sm:mt-1">{totalTransactions}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{getPeriodLabel()}</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ticket Promedio</p>
-                  <p className="text-2xl font-bold mt-1">${averageTicket.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Por transacción</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-gradient-warning flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Productos Vendidos</p>
-                  <p className="text-2xl font-bold mt-1">{totalProductsSold}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{getPeriodLabel()}</p>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Ticket Promedio</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold mt-0.5 sm:mt-1 truncate">
+                    ${averageTicket.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">Por transacción</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-gradient-subtle flex items-center justify-center">
-                  <Package className="w-6 h-6 text-muted-foreground" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-warning flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Productos Vendidos</p>
+                  <p className="text-base sm:text-xl lg:text-2xl font-bold mt-0.5 sm:mt-1">{totalProductsSold.toLocaleString('es-CL')}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{getPeriodLabel()}</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-subtle flex items-center justify-center flex-shrink-0">
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
@@ -554,23 +568,23 @@ export default function Reports() {
         </div>
       )}
 
-      <Tabs defaultValue="zreport" className="space-y-4">
+      <Tabs defaultValue="zreport" className="space-y-3 sm:space-y-4">
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:w-auto sm:min-w-0">
-            <TabsTrigger value="zreport" className="text-xs sm:text-sm whitespace-nowrap">Cierre Z</TabsTrigger>
-            <TabsTrigger value="sales" className="text-xs sm:text-sm whitespace-nowrap">Ventas</TabsTrigger>
-            <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap">Productos</TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-sm whitespace-nowrap">Categorías</TabsTrigger>
-            <TabsTrigger value="suppliers" className="text-xs sm:text-sm whitespace-nowrap">Proveedores</TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs sm:text-sm whitespace-nowrap">Sesiones</TabsTrigger>
+            <TabsTrigger value="zreport" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Cierre Z</TabsTrigger>
+            <TabsTrigger value="sales" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Ventas</TabsTrigger>
+            <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Productos</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Categorías</TabsTrigger>
+            <TabsTrigger value="suppliers" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Proveedores</TabsTrigger>
+            <TabsTrigger value="sessions" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Sesiones</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="zreport" className="space-y-4">
           {loadingZReport ? (
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8 text-muted-foreground">
+              <CardContent className="p-4 sm:p-6">
+                <div className="text-center py-6 sm:py-8 text-muted-foreground">
                   Generando reporte...
                 </div>
               </CardContent>
@@ -578,110 +592,141 @@ export default function Reports() {
           ) : zReportData ? (
             <>
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Reporte de Cierre Z - {format(new Date(), "PPP", { locale: es })}
+                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="truncate">Reporte de Cierre Z - {format(new Date(), "PPP", { locale: es })}</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Total Sesiones</p>
-                      <p className="text-2xl font-bold">{zReportData.sessionCount}</p>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground">Total Sesiones</p>
+                      <p className="text-lg sm:text-2xl font-bold">{zReportData.sessionCount}</p>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Total Transacciones</p>
-                      <p className="text-2xl font-bold">{zReportData.totalTransactions}</p>
+                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground">Transacciones</p>
+                      <p className="text-lg sm:text-2xl font-bold">{zReportData.totalTransactions}</p>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Ventas Totales</p>
-                      <p className="text-2xl font-bold text-success">${zReportData.totalSales.toFixed(2)}</p>
+                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground">Ventas Totales</p>
+                      <p className="text-lg sm:text-2xl font-bold text-success">${zReportData.totalSales.toLocaleString('es-CL')}</p>
                     </div>
                   </div>
 
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold mb-3">Desglose por Método de Pago</h3>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="flex justify-between p-3 bg-muted rounded-lg">
+                  <div className="border-t pt-3 sm:pt-4">
+                    <h3 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Desglose por Método de Pago</h3>
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
                         <span className="text-muted-foreground">Efectivo</span>
-                        <span className="font-semibold">${zReportData.cashTotal.toFixed(2)}</span>
+                        <span className="font-semibold">${zReportData.cashTotal.toLocaleString('es-CL')}</span>
                       </div>
-                      <div className="flex justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
                         <span className="text-muted-foreground">Débito</span>
-                        <span className="font-semibold">${zReportData.debitTotal.toFixed(2)}</span>
+                        <span className="font-semibold">${zReportData.debitTotal.toLocaleString('es-CL')}</span>
                       </div>
-                      <div className="flex justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
                         <span className="text-muted-foreground">Crédito</span>
-                        <span className="font-semibold">${zReportData.creditTotal.toFixed(2)}</span>
+                        <span className="font-semibold">${zReportData.creditTotal.toLocaleString('es-CL')}</span>
                       </div>
-                      <div className="flex justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
                         <span className="text-muted-foreground">Transferencia</span>
-                        <span className="font-semibold">${zReportData.transferTotal.toFixed(2)}</span>
+                        <span className="font-semibold">${zReportData.transferTotal.toLocaleString('es-CL')}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between p-3 bg-muted rounded-lg">
+                  <div className="border-t pt-3 sm:pt-4">
+                    <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
                       <span className="text-muted-foreground">Total Vuelto Entregado</span>
-                      <span className="font-semibold text-destructive">${zReportData.totalChange.toFixed(2)}</span>
+                      <span className="font-semibold text-destructive">${zReportData.totalChange.toLocaleString('es-CL')}</span>
                     </div>
                   </div>
 
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold mb-3">Sesiones del Día</h3>
+                  {/* Mixto Breakdown */}
+                  {zReportData.mixtoTotal > 0 && (
+                    <div className="border-t pt-3 sm:pt-4">
+                      <h3 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Desglose de Pagos Mixtos</h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="flex flex-col p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm text-center">
+                          <span className="text-muted-foreground">Total Mixto</span>
+                          <span className="font-semibold">${zReportData.mixtoTotal.toLocaleString('es-CL')}</span>
+                        </div>
+                        <div className="flex flex-col p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm text-center">
+                          <span className="text-muted-foreground">Efectivo</span>
+                          <span className="font-semibold text-success">${zReportData.mixtoCashTotal.toLocaleString('es-CL')}</span>
+                        </div>
+                        <div className="flex flex-col p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm text-center">
+                          <span className="text-muted-foreground">Tarjeta</span>
+                          <span className="font-semibold text-primary">${zReportData.mixtoCardTotal.toLocaleString('es-CL')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* USD Sales */}
+                  {zReportData.usdSalesCount > 0 && (
+                    <div className="border-t pt-3 sm:pt-4">
+                      <h3 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Ventas en USD</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm text-center">
+                          <span className="text-muted-foreground">Transacciones</span>
+                          <span className="font-semibold">{zReportData.usdSalesCount}</span>
+                        </div>
+                        <div className="flex flex-col p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm text-center">
+                          <span className="text-muted-foreground">Total USD</span>
+                          <span className="font-semibold text-success">${zReportData.usdTotalReceived.toFixed(2)} USD</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-3 sm:pt-4">
+                    <h3 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Sesiones del Día</h3>
                     <div className="space-y-2">
                       {zReportData.sessions.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">No hay sesiones registradas hoy</p>
+                        <p className="text-center text-muted-foreground py-4 text-sm">No hay sesiones registradas hoy</p>
                       ) : (
                         zReportData.sessions.map((session: any) => (
                           <Card key={session.id}>
-                            <CardContent className="p-3 sm:p-4">
-                              <div className="flex flex-col gap-3">
+                            <CardContent className="p-3">
+                              <div className="flex flex-col gap-2 sm:gap-3">
                                 {/* Header row */}
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge variant={session.status === 'open' ? 'default' : 'secondary'}>
+                                  <Badge variant={session.status === 'open' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
                                     {session.status === 'open' ? 'Abierta' : 'Cerrada'}
                                   </Badge>
-                                  <span className="font-medium text-sm sm:text-base">{session.profiles?.full_name}</span>
-                                  <span className="text-xs sm:text-sm text-muted-foreground ml-auto">
+                                  <span className="font-medium text-xs sm:text-sm truncate">{session.profiles?.full_name}</span>
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground ml-auto">
                                     {format(new Date(session.opened_at), "HH:mm", { locale: es })}
                                     {session.closed_at && ` - ${format(new Date(session.closed_at), "HH:mm", { locale: es })}`}
                                   </span>
                                 </div>
                                 
                                 {/* Amounts grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-                                  <div className="bg-muted/50 rounded-lg p-2">
-                                    <div className="text-xs text-muted-foreground">Inicial</div>
-                                    <div className="font-semibold text-sm">${session.initial_amount.toFixed(2)}</div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="bg-muted/50 rounded-lg px-2 py-1 sm:px-3 sm:py-2">
+                                    <div className="text-[10px] sm:text-xs text-muted-foreground">Inicial</div>
+                                    <div className="font-semibold text-xs sm:text-sm">${session.initial_amount.toLocaleString('es-CL')}</div>
                                   </div>
                                   {session.status === 'closed' && session.final_amount && (
                                     <>
-                                      <div className="bg-muted/50 rounded-lg p-2">
-                                        <div className="text-xs text-muted-foreground">Final</div>
-                                        <div className="font-semibold text-sm">${session.final_amount.toFixed(2)}</div>
-                                      </div>
-                                      <div className="bg-muted/50 rounded-lg p-2">
-                                        <div className="text-xs text-muted-foreground">Diferencia</div>
-                                        <div className={`font-bold text-sm ${(session.final_amount - session.initial_amount) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                          ${Math.abs(session.final_amount - session.initial_amount).toFixed(2)}
-                                        </div>
+                                      <div className="bg-muted/50 rounded-lg px-2 py-1 sm:px-3 sm:py-2">
+                                        <div className="text-[10px] sm:text-xs text-muted-foreground">Final</div>
+                                        <div className="font-semibold text-xs sm:text-sm">${session.final_amount.toLocaleString('es-CL')}</div>
                                       </div>
                                     </>
                                   )}
-                                  <div className={`${session.status === 'closed' ? '' : 'col-span-1'} flex items-end`}>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleViewSession(session)}
-                                      className="w-full"
-                                    >
-                                      <Eye className="w-4 h-4 mr-1 sm:mr-2" />
-                                      <span className="hidden sm:inline">Ver</span>
-                                    </Button>
-                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewSession(session)}
+                                    className="ml-auto h-7 sm:h-8 text-xs"
+                                  >
+                                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                    Ver
+                                  </Button>
                                 </div>
                               </div>
                             </CardContent>
