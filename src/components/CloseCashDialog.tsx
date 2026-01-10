@@ -121,7 +121,7 @@ export function CloseCashDialog({
                           </span>
                         </div>
                         <span className="font-bold text-success">
-                          ${amount.toFixed(2)}
+                          ${amount.toLocaleString('es-CL')}
                         </span>
                       </div>
                     </CardContent>
@@ -132,7 +132,7 @@ export function CloseCashDialog({
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Total Ventas</span>
                       <span className="font-bold text-lg text-success">
-                        ${totalSales.toFixed(2)}
+                        ${totalSales.toLocaleString('es-CL')}
                       </span>
                     </div>
                   </CardContent>
@@ -143,26 +143,26 @@ export function CloseCashDialog({
             <div className="bg-accent p-3 rounded-lg space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Monto Inicial:</span>
-                <span className="font-semibold">${initialAmount.toFixed(2)}</span>
+                <span className="font-semibold">${initialAmount.toLocaleString('es-CL')}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Ventas del Día:</span>
-                <span className="font-semibold text-success">+${totalSales.toFixed(2)}</span>
+                <span className="font-semibold text-success">+${totalSales.toLocaleString('es-CL')}</span>
               </div>
               <div className="flex justify-between text-sm border-t pt-1 mt-1">
                 <span className="text-muted-foreground font-medium">Monto Esperado:</span>
-                <span className="font-bold">${(initialAmount + totalSales).toFixed(2)}</span>
+                <span className="font-bold">${(initialAmount + totalSales).toLocaleString('es-CL')}</span>
               </div>
               {finalAmount && (
                 <>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Monto Contado:</span>
-                    <span className="font-semibold">${parseFloat(finalAmount).toFixed(2)}</span>
+                    <span className="font-semibold">${parseFloat(finalAmount).toLocaleString('es-CL')}</span>
                   </div>
                   <div className="flex justify-between text-sm pt-2 border-t">
                     <span className="text-muted-foreground">Diferencia de Caja:</span>
                     <span className={`font-bold ${(parseFloat(finalAmount) - (initialAmount + totalSales)) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      ${Math.abs(parseFloat(finalAmount) - (initialAmount + totalSales)).toFixed(2)} {(parseFloat(finalAmount) - (initialAmount + totalSales)) >= 0 ? '(Sobrante)' : '(Faltante)'}
+                      ${Math.abs(parseFloat(finalAmount) - (initialAmount + totalSales)).toLocaleString('es-CL')} {(parseFloat(finalAmount) - (initialAmount + totalSales)) >= 0 ? '(Sobrante)' : '(Faltante)'}
                     </span>
                   </div>
                 </>

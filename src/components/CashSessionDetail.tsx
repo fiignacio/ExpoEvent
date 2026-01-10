@@ -366,21 +366,51 @@ export function CashSessionDetail({ sessionId, sessionData, open, onOpenChange }
             <div>
               <h3 className="font-semibold mb-3">Métodos de Pago</h3>
               <div className="grid gap-3 md:grid-cols-2">
-                {Object.entries(paymentMethodStats).map(([method, amount]) => (
-                  <Card key={method}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {getPaymentIcon(method)}
-                          <span className="font-medium capitalize">{method}</span>
+                {Object.entries(paymentMethodStats).map(([method, amount]) => {
+                  // Calculate mixed payment breakdown
+                  const mixedSales = sales.filter(s => s.payment_method.toLowerCase() === 'mixto');
+                  const mixedCashTotal = mixedSales.reduce((sum, s) => sum + (Number((s as any).cash_amount) || 0), 0);
+                  const mixedCardTotal = mixedSales.reduce((sum, s) => sum + (s.total - (Number((s as any).cash_amount) || 0)), 0);
+                  
+                  return (
+                    <Card key={method}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getPaymentIcon(method)}
+                            <span className="font-medium capitalize">{method}</span>
+                          </div>
+                          <span className="text-lg font-bold text-success">
+                            ${amount.toLocaleString('es-CL')}
+                          </span>
                         </div>
-                        <span className="text-lg font-bold text-success">
-                          ${amount.toFixed(2)}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        {/* Show mixed payment breakdown */}
+                        {method.toLowerCase() === 'mixto' && mixedSales.length > 0 && (
+                          <div className="mt-2 pt-2 border-t text-sm space-y-1">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Banknote className="w-3 h-3" />
+                                Efectivo:
+                              </span>
+                              <span className="font-medium text-foreground">
+                                ${mixedCashTotal.toLocaleString('es-CL')}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <CreditCard className="w-3 h-3" />
+                                Tarjeta:
+                              </span>
+                              <span className="font-medium text-foreground">
+                                ${mixedCardTotal.toLocaleString('es-CL')}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
 
