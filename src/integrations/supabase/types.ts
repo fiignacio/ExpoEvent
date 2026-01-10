@@ -210,10 +210,13 @@ export type Database = {
       }
       offline_sales: {
         Row: {
+          cash_amount: number | null
           change_amount: number | null
           created_at: string
+          exchange_rate_used: number | null
           id: string
           items: Json
+          paid_in_usd: boolean | null
           payment_method: string
           session_id: string | null
           subtotal: number
@@ -221,13 +224,17 @@ export type Database = {
           synced_at: string | null
           tax: number
           total: number
+          usd_amount: number | null
           user_id: string
         }
         Insert: {
+          cash_amount?: number | null
           change_amount?: number | null
           created_at?: string
+          exchange_rate_used?: number | null
           id?: string
           items: Json
+          paid_in_usd?: boolean | null
           payment_method: string
           session_id?: string | null
           subtotal: number
@@ -235,13 +242,17 @@ export type Database = {
           synced_at?: string | null
           tax?: number
           total: number
+          usd_amount?: number | null
           user_id: string
         }
         Update: {
+          cash_amount?: number | null
           change_amount?: number | null
           created_at?: string
+          exchange_rate_used?: number | null
           id?: string
           items?: Json
+          paid_in_usd?: boolean | null
           payment_method?: string
           session_id?: string | null
           subtotal?: number
@@ -249,6 +260,7 @@ export type Database = {
           synced_at?: string | null
           tax?: number
           total?: number
+          usd_amount?: number | null
           user_id?: string
         }
         Relationships: [

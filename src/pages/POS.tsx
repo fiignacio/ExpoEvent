@@ -83,6 +83,9 @@ export default function POS() {
   const [customerPrices, setCustomerPrices] = useState<Map<string, number>>(new Map());
   const [payInUsd, setPayInUsd] = useState(false);
   const [usdAmount, setUsdAmount] = useState("");
+  const [mixedCashAmount, setMixedCashAmount] = useState("");
+  const [mixedPayInUsd, setMixedPayInUsd] = useState(false);
+  const [mixedUsdAmount, setMixedUsdAmount] = useState("");
 
   // Parse quick cash amounts from settings
   const quickCashAmounts = (): number[] => {
@@ -465,6 +468,10 @@ export default function POS() {
     if (isProcessing) return; // Prevenir doble clic
     
     let changeAmount = 0;
+    let cashAmount = 0;
+    let paidInUsd = false;
+    let usdAmountPaid = 0;
+    let exchangeRateUsed = 0;
     
     if (paymentMethod === "efectivo") {
       const received = parseFloat(receivedAmount);
@@ -473,6 +480,34 @@ export default function POS() {
         return;
       }
       changeAmount = received - total;
+      cashAmount = total; // Todo es efectivo
+      
+      // Track USD payment if used
+      if (payInUsd && usdAmount) {
+        paidInUsd = true;
+        usdAmountPaid = parseFloat(usdAmount);
+        exchangeRateUsed = currentRate;
+      }
+    } else if (paymentMethod === "mixto") {
+      const cashPaid = parseFloat(mixedCashAmount);
+      if (!cashPaid || cashPaid <= 0 || cashPaid > total) {
+        toast.error("Ingresa un monto válido en efectivo (entre $1 y el total)");
+        return;
+      }
+      cashAmount = cashPaid;
+      
+      // Track USD payment for mixed
+      if (mixedPayInUsd && mixedUsdAmount) {
+        paidInUsd = true;
+        usdAmountPaid = parseFloat(mixedUsdAmount);
+        exchangeRateUsed = currentRate;
+      }
+      
+      // Check if cash received is more than cash amount (needs change)
+      const received = parseFloat(receivedAmount);
+      if (received > 0 && received > cashPaid) {
+        changeAmount = received - cashPaid;
+      }
     }
 
     setIsProcessing(true);
@@ -532,6 +567,10 @@ export default function POS() {
             total,
             payment_method: paymentMethod,
             change_amount: changeAmount,
+            cash_amount: cashAmount,
+            paid_in_usd: paidInUsd,
+            usd_amount: usdAmountPaid,
+            exchange_rate_used: exchangeRateUsed,
             synced: true,
             synced_at: new Date().toISOString()
           }]);
@@ -614,8 +653,11 @@ export default function POS() {
 
         if (paymentMethod === "efectivo") {
           toast.success(`Venta procesada. Cambio: $${changeAmount.toFixed(2)}`);
+        } else if (paymentMethod === "mixto") {
+          const cardAmount = total - cashAmount;
+          toast.success(`Venta procesada: $${cashAmount.toLocaleString('es-CL')} efectivo + $${cardAmount.toLocaleString('es-CL')} tarjeta`);
         } else {
-          const methodNames = {
+          const methodNames: Record<string, string> = {
             debito: "Tarjeta de Débito",
             credito: "Tarjeta de Crédito",
             transferencia: "Transferencia"
@@ -634,6 +676,11 @@ export default function POS() {
       setShowPaymentDialog(false);
       setReceivedAmount("");
       setPaymentMethod("efectivo");
+      setPayInUsd(false);
+      setUsdAmount("");
+      setMixedCashAmount("");
+      setMixedPayInUsd(false);
+      setMixedUsdAmount("");
     } catch (error: any) {
       toast.error("Error al procesar la venta: " + error.message);
     } finally {
@@ -1196,6 +1243,172 @@ export default function POS() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mixed Payment UI */}
+            {paymentMethod === "mixto" && (
+              <div className="space-y-3 sm:space-y-4">
+                <div className="p-3 border rounded-lg bg-primary/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Total a pagar:</span>
+                    <span className="text-lg font-bold">${total.toLocaleString('es-CL')}</span>
+                  </div>
+                </div>
+
+                {/* Cash Amount Input */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Monto en Efectivo</Label>
+                  <Input
+                    type="number"
+                    step="1"
+                    placeholder="Ingresa el monto en efectivo"
+                    value={mixedCashAmount}
+                    onChange={(e) => setMixedCashAmount(e.target.value)}
+                    className="h-10 sm:h-11 text-base"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Quick Cash Buttons for Mixed */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Montos Rápidos</Label>
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                    {quickCashAmounts().filter(amount => amount < total).map((amount) => (
+                      <Button
+                        key={amount}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 sm:h-10 text-sm font-semibold"
+                        onClick={() => {
+                          setMixedCashAmount(amount.toString());
+                          setMixedPayInUsd(false);
+                        }}
+                      >
+                        ${amount.toLocaleString('es-CL')}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* USD Option for Mixed Payment */}
+                <div className="space-y-2 sm:space-y-3 p-2 sm:p-3 border rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="mixed-pay-usd" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-xs sm:text-sm">
+                      <CircleDollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-success shrink-0" />
+                      <span>Efectivo en USD</span>
+                    </Label>
+                    <Switch
+                      id="mixed-pay-usd"
+                      checked={mixedPayInUsd}
+                      onCheckedChange={(checked) => {
+                        setMixedPayInUsd(checked);
+                        if (checked) {
+                          setMixedCashAmount("");
+                          setMixedUsdAmount("");
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {mixedPayInUsd && (
+                    <div className="space-y-2">
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        <span className="text-[10px] sm:text-xs">(1 USD = ${currentRate.toLocaleString('es-CL')} CLP)</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 sm:items-center">
+                        <Label htmlFor="mixed-usd-amount" className="shrink-0 text-xs sm:text-sm">USD Recibido:</Label>
+                        <Input
+                          id="mixed-usd-amount"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={mixedUsdAmount}
+                          className="h-9 sm:h-10 text-sm"
+                          onChange={(e) => {
+                            setMixedUsdAmount(e.target.value);
+                            const usd = parseFloat(e.target.value) || 0;
+                            setMixedCashAmount(Math.round(usd * currentRate).toString());
+                          }}
+                        />
+                      </div>
+                      {mixedUsdAmount && parseFloat(mixedUsdAmount) > 0 && (
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Equivale a: <span className="font-bold">${convertUsdToClp(parseFloat(mixedUsdAmount)).toLocaleString('es-CL')} CLP</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary of Mixed Payment */}
+                {mixedCashAmount && parseFloat(mixedCashAmount) > 0 && parseFloat(mixedCashAmount) < total && (
+                  <div className="space-y-2 p-3 border rounded-lg bg-accent">
+                    <h4 className="text-sm font-semibold">Resumen del Pago Mixto</h4>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5">
+                          <Banknote className="w-4 h-4 text-success" />
+                          Efectivo:
+                        </span>
+                        <span className="font-bold text-success">
+                          ${parseFloat(mixedCashAmount).toLocaleString('es-CL')}
+                          {mixedPayInUsd && mixedUsdAmount && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (${parseFloat(mixedUsdAmount).toFixed(2)} USD)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-primary" />
+                          Tarjeta:
+                        </span>
+                        <span className="font-bold text-primary">
+                          ${(total - parseFloat(mixedCashAmount)).toLocaleString('es-CL')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-2 border-t">
+                        <span className="font-semibold">Total:</span>
+                        <span className="font-bold">${total.toLocaleString('es-CL')}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Optional: Cash Received for Change */}
+                {mixedCashAmount && parseFloat(mixedCashAmount) > 0 && parseFloat(mixedCashAmount) < total && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Monto Recibido en Efectivo (si hay vuelto)</Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      placeholder={`Mínimo $${parseFloat(mixedCashAmount).toLocaleString('es-CL')}`}
+                      value={receivedAmount}
+                      onChange={(e) => setReceivedAmount(e.target.value)}
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                    {receivedAmount && parseFloat(receivedAmount) > parseFloat(mixedCashAmount) && (
+                      <div className="p-2 border rounded bg-success/10">
+                        <div className="flex items-center justify-between text-sm">
+                          <span>Cambio:</span>
+                          <span className="font-bold text-success">
+                            ${(parseFloat(receivedAmount) - parseFloat(mixedCashAmount)).toLocaleString('es-CL')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Validation Message */}
+                {mixedCashAmount && parseFloat(mixedCashAmount) >= total && (
+                  <div className="p-2 border rounded-lg bg-destructive/10 text-destructive text-sm">
+                    El monto en efectivo debe ser menor al total. Para pago completo en efectivo, selecciona "Efectivo".
                   </div>
                 )}
               </div>

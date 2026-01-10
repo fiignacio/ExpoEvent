@@ -31,7 +31,11 @@ interface ZReport {
   creditTotal: number;
   transferTotal: number;
   mixtoTotal: number;
+  mixtoCashTotal: number;
+  mixtoCardTotal: number;
   totalChange: number;
+  usdSalesCount: number;
+  usdTotalReceived: number;
   sessions: any[];
 }
 
@@ -216,19 +220,34 @@ export function useReports(days: number = 7) {
       let creditTotal = 0;
       let transferTotal = 0;
       let mixtoTotal = 0;
+      let mixtoCashTotal = 0;
+      let mixtoCardTotal = 0;
       let totalChange = 0;
       let totalSales = 0;
+      let usdSalesCount = 0;
+      let usdTotalReceived = 0;
 
       sales?.forEach((sale) => {
         totalSales += sale.total;
         totalChange += sale.change_amount || 0;
+
+        // Track USD payments
+        if (sale.paid_in_usd && sale.usd_amount) {
+          usdSalesCount++;
+          usdTotalReceived += Number(sale.usd_amount);
+        }
 
         const method = sale.payment_method.toLowerCase();
         if (method === 'efectivo') cashTotal += sale.total;
         else if (method === 'debito') debitTotal += sale.total;
         else if (method === 'credito') creditTotal += sale.total;
         else if (method === 'transferencia') transferTotal += sale.total;
-        else if (method === 'mixto') mixtoTotal += sale.total;
+        else if (method === 'mixto') {
+          mixtoTotal += sale.total;
+          const cashAmount = Number(sale.cash_amount) || 0;
+          mixtoCashTotal += cashAmount;
+          mixtoCardTotal += sale.total - cashAmount;
+        }
       });
 
       // Enrich sessions with user names
@@ -246,7 +265,11 @@ export function useReports(days: number = 7) {
         creditTotal,
         transferTotal,
         mixtoTotal,
+        mixtoCashTotal,
+        mixtoCardTotal,
         totalChange,
+        usdSalesCount,
+        usdTotalReceived,
         sessions: enrichedSessions
       };
     } catch (error: any) {
@@ -261,7 +284,11 @@ export function useReports(days: number = 7) {
         creditTotal: 0,
         transferTotal: 0,
         mixtoTotal: 0,
+        mixtoCashTotal: 0,
+        mixtoCardTotal: 0,
         totalChange: 0,
+        usdSalesCount: 0,
+        usdTotalReceived: 0,
         sessions: []
       };
     }

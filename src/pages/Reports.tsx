@@ -84,8 +84,11 @@ export default function Reports() {
         break;
       case "custom":
         if (customStartDate && customEndDate) {
-          const start = new Date(customStartDate);
-          const end = new Date(customEndDate);
+          // Parse dates in local timezone to avoid UTC offset issues
+          const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+          const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+          const start = new Date(startYear, startMonth - 1, startDay);
+          const end = new Date(endYear, endMonth - 1, endDay);
           const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
           setActiveDays(daysDiff);
         }
@@ -109,8 +112,17 @@ export default function Reports() {
           startDate = startOfWeek(today, { weekStartsOn: 1 });
           break;
         case "custom":
-          startDate = customStartDate ? new Date(customStartDate) : subDays(today, 7);
-          endDate = customEndDate ? new Date(customEndDate) : today;
+          if (customStartDate && customEndDate) {
+            // Parse dates in local timezone to avoid UTC offset issues
+            const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+            const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+            startDate = new Date(startYear, startMonth - 1, startDay);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(endYear, endMonth - 1, endDay);
+            endDate.setHours(23, 59, 59, 999);
+          } else {
+            startDate = subDays(today, 7);
+          }
           break;
         default:
           startDate = subDays(today, activeDays - 1);
@@ -253,8 +265,17 @@ export default function Reports() {
           startDate = startOfWeek(today, { weekStartsOn: 1 });
           break;
         case "custom":
-          startDate = customStartDate ? new Date(customStartDate) : subDays(today, 7);
-          endDate = customEndDate ? new Date(customEndDate) : today;
+          if (customStartDate && customEndDate) {
+            // Parse dates in local timezone to avoid UTC offset issues
+            const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+            const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+            startDate = new Date(startYear, startMonth - 1, startDay);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(endYear, endMonth - 1, endDay);
+            endDate.setHours(23, 59, 59, 999);
+          } else {
+            startDate = subDays(today, 7);
+          }
           break;
         default:
           startDate = subDays(today, activeDays - 1);
@@ -339,18 +360,33 @@ export default function Reports() {
         const items = Array.isArray(sale.items) ? sale.items : [];
         items.forEach((item: any) => {
           const product = productsMap.get(item.id);
-          transactionsData.push({
+          const row: Record<string, any> = {
             Fecha: format(new Date(sale.created_at), 'PPP HH:mm', { locale: es }),
             Usuario: profilesMap.get(sale.user_id) || 'N/A',
             Producto: product?.name || item.name || 'Producto desconocido',
             SKU: product?.sku || item.sku || 'N/A',
             Cantidad: item.quantity || 1,
-            'Precio Unitario': `$${(item.price || 0).toFixed(2)}`,
-            'Subtotal Producto': `$${((item.price || 0) * (item.quantity || 1)).toFixed(2)}`,
+            'Precio Unitario (CLP)': `$${(item.price || 0).toLocaleString('es-CL')}`,
+            'Subtotal Producto (CLP)': `$${((item.price || 0) * (item.quantity || 1)).toLocaleString('es-CL')}`,
             'Método de Pago': sale.payment_method,
-            'Total Venta': `$${sale.total.toFixed(2)}`,
+            'Total Venta (CLP)': `$${sale.total.toLocaleString('es-CL')}`,
             'ID Venta': sale.id.slice(0, 8),
-          });
+          };
+          
+          // Add mixed payment breakdown if applicable
+          if (sale.payment_method === 'mixto' && sale.cash_amount) {
+            row['Efectivo (CLP)'] = `$${Number(sale.cash_amount).toLocaleString('es-CL')}`;
+            row['Tarjeta (CLP)'] = `$${(sale.total - Number(sale.cash_amount)).toLocaleString('es-CL')}`;
+          }
+          
+          // Add USD info if paid in USD
+          if (sale.paid_in_usd && sale.usd_amount) {
+            row['Pagado en USD'] = 'Sí';
+            row['Monto USD'] = `$${Number(sale.usd_amount).toFixed(2)} USD`;
+            row['Tasa Cambio'] = `$${Number(sale.exchange_rate_used).toLocaleString('es-CL')}`;
+          }
+          
+          transactionsData.push(row);
         });
       });
       const wsTransactions = XLSX.utils.json_to_sheet(transactionsData);
