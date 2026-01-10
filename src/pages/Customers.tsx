@@ -501,14 +501,15 @@ function CustomerDetail({
           </div>
 
           <TabsContent value="products" className="space-y-4">
-            <div className="flex flex-wrap justify-between items-center gap-2">
-              <h3 className="text-lg font-semibold">Productos vinculados</h3>
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold">Productos vinculados</h3>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 w-full sm:w-auto">
                 <Dialog open={debtFromProductsDialogOpen} onOpenChange={setDebtFromProductsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" disabled={products.length === 0}>
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Registrar Deuda
+                    <Button size="sm" variant="outline" disabled={products.length === 0} className="flex-1 sm:flex-none h-8 text-xs sm:text-sm px-2 sm:px-3">
+                      <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                      <span className="hidden sm:inline">Registrar Deuda</span>
+                      <span className="sm:hidden">Deuda</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
@@ -606,9 +607,10 @@ function CustomerDetail({
                 </Dialog>
                 <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm">
-                      <PackagePlus className="w-4 h-4 mr-2" />
-                      Vincular Productos
+                    <Button size="sm" className="flex-1 sm:flex-none h-8 text-xs sm:text-sm px-2 sm:px-3">
+                      <PackagePlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                      <span className="hidden sm:inline">Vincular Productos</span>
+                      <span className="sm:hidden">Vincular</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
@@ -626,10 +628,10 @@ function CustomerDetail({
                 </Dialog>
                 <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" disabled={products.length === 0}>
-                      <Download className="w-4 h-4 mr-2" />
-                      <span className="hidden sm:inline">Exportar Reporte</span>
-                      <span className="sm:hidden">Reporte</span>
+                    <Button size="sm" variant="outline" disabled={products.length === 0} className="flex-1 sm:flex-none h-8 text-xs sm:text-sm px-2 sm:px-3">
+                      <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                      <span className="hidden sm:inline">Exportar</span>
+                      <span className="sm:hidden">Export</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
