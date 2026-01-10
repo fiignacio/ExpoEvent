@@ -1275,23 +1275,34 @@ export default function POS() {
                 {/* Quick Cash Buttons for Mixed */}
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Montos Rápidos</Label>
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-                    {quickCashAmounts().filter(amount => amount < total).map((amount) => (
+                  <div className="grid grid-cols-4 gap-1">
+                    {quickCashAmounts().filter(amount => amount <= total).map((amount) => (
                       <Button
                         key={amount}
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-9 sm:h-10 text-sm font-semibold"
+                        className="h-8 text-xs font-semibold px-1"
                         onClick={() => {
                           setMixedCashAmount(amount.toString());
                           setMixedPayInUsd(false);
                         }}
                       >
-                        ${amount.toLocaleString('es-CL')}
+                        ${(amount / 1000).toFixed(0)}k
                       </Button>
                     ))}
                   </div>
+                  {/* Exact Amount Button for Mixed */}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="w-full h-8 text-xs"
+                    onClick={() => setMixedCashAmount(Math.ceil(total * 0.5).toString())}
+                  >
+                    <Banknote className="w-3 h-3 mr-1" />
+                    50% Efectivo (${Math.ceil(total * 0.5).toLocaleString('es-CL')})
+                  </Button>
                 </div>
 
                 {/* USD Option for Mixed Payment */}
