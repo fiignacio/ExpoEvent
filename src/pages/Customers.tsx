@@ -8,10 +8,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -40,6 +53,40 @@ import {
 import { useProducts } from "@/hooks/useProducts";
 import { BulkProductSelector } from "@/components/BulkProductSelector";
 import { exportCustomerSalesReport } from "@/utils/customerReportExport";
+
+// Componente de confirmación para eliminar producto
+function DeleteProductConfirmDialog({ 
+  productName, 
+  onConfirm 
+}: { 
+  productName: string; 
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar producto vinculado?</AlertDialogTitle>
+          <AlertDialogDescription>
+            ¿Estás seguro de que deseas desvincular <strong>{productName}</strong>? 
+            Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export default function Customers() {
   const { customers, loading, addCustomer, updateCustomer, deleteCustomer, refresh: refreshCustomers } = useCustomers();
@@ -694,57 +741,100 @@ function CustomerDetail({
                 </Dialog>
               </div>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>{customer.type === 'proveedor' ? 'Monto por Venta' : 'Precio'}</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.length === 0 ? (
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No hay productos vinculados
-                    </TableCell>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>{customer.type === 'proveedor' ? 'Monto por Venta' : 'Precio'}</TableHead>
+                    <TableHead>Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>{product.product?.name}</TableCell>
-                      <TableCell>{product.product?.sku}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <span>$</span>
-                          <Input
-                            type="number"
-                            className="w-24 h-8"
-                            defaultValue={Number(product.price)}
-                            onBlur={(e) => {
-                              const newPrice = Number(e.target.value);
-                              if (newPrice !== Number(product.price)) {
-                                updateProductPrice(product.id, newPrice);
-                              }
-                            }}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeProduct(product.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {products.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        No hay productos vinculados
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    products.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell>{product.product?.name}</TableCell>
+                        <TableCell>{product.product?.sku}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <span>$</span>
+                            <Input
+                              type="number"
+                              className="w-24 h-8"
+                              defaultValue={Number(product.price)}
+                              onBlur={(e) => {
+                                const newPrice = Number(e.target.value);
+                                if (newPrice !== Number(product.price)) {
+                                  updateProductPrice(product.id, newPrice);
+                                }
+                              }}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DeleteProductConfirmDialog
+                            productName={product.product?.name || 'Producto'}
+                            onConfirm={() => removeProduct(product.id)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-2">
+              {products.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No hay productos vinculados
+                </div>
+              ) : (
+                products.map((product) => (
+                  <Card key={product.id} className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="font-medium text-sm truncate">{product.product?.name}</p>
+                        <p className="text-xs text-muted-foreground">SKU: {product.product?.sku}</p>
+                        <div className="flex items-center gap-1 mt-2">
+                          <span className="text-xs text-muted-foreground">
+                            {customer.type === 'proveedor' ? 'Monto:' : 'Precio:'}
+                          </span>
+                          <div className="flex items-center gap-0.5">
+                            <span className="text-xs">$</span>
+                            <Input
+                              type="number"
+                              className="w-20 h-7 text-xs"
+                              defaultValue={Number(product.price)}
+                              onBlur={(e) => {
+                                const newPrice = Number(e.target.value);
+                                if (newPrice !== Number(product.price)) {
+                                  updateProductPrice(product.id, newPrice);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <DeleteProductConfirmDialog
+                        productName={product.product?.name || 'Producto'}
+                        onConfirm={() => removeProduct(product.id)}
+                      />
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-4">
