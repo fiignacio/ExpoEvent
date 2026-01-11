@@ -335,8 +335,8 @@ export default function Inventory() {
         />
       </div>
 
-      {/* Mobile: Card View */}
-      <div className="md:hidden space-y-2">
+      {/* Mobile & Tablet: Card View */}
+      <div className="lg:hidden space-y-2">
         {filteredInventory.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">No se encontraron productos</p>
         ) : (
@@ -347,7 +347,7 @@ export default function Inventory() {
       </div>
 
       {/* Desktop: Table View */}
-      <Card className="hidden md:block">
+      <Card className="hidden lg:block">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Lista de Productos ({filteredInventory.length})</CardTitle>
         </CardHeader>
