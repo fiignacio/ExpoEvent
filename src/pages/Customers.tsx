@@ -282,14 +282,82 @@ export default function Customers() {
               <CardTitle className="text-base sm:text-lg">Clientes y Proveedores</CardTitle>
             </CardHeader>
             <CardContent className="p-0 sm:p-6 pt-0">
-              <div className="overflow-x-auto">
+              {/* Mobile/Tablet Card View */}
+              <div className="lg:hidden space-y-2 p-2">
+                {customers.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No hay clientes</p>
+                ) : (
+                  customers.map((customer) => (
+                    <Card 
+                      key={customer.id} 
+                      className="p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedCustomer(customer)}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-sm truncate">{customer.name}</p>
+                            <Badge
+                              variant={customer.type === "cliente" ? "default" : "secondary"}
+                              className="text-[10px] shrink-0"
+                            >
+                              {customer.type === "cliente" ? "Cliente" : "Proveedor"}
+                            </Badge>
+                          </div>
+                          {(customer.email || customer.phone) && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {customer.email || customer.phone}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleEdit(customer)}
+                            className="h-8 w-8"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Estás seguro de eliminar a {customer.name}?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => deleteCustomer(customer.id)}
+                                  className="bg-destructive text-destructive-foreground"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
                       <TableHead className="text-xs sm:text-sm">Tipo</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Email</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Teléfono</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Email</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Teléfono</TableHead>
                       <TableHead className="text-xs sm:text-sm">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -311,10 +379,10 @@ export default function Customers() {
                             {customer.type === "cliente" ? "Cliente" : "Proveedor"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell py-2 sm:py-4">
+                        <TableCell className="text-xs sm:text-sm py-2 sm:py-4">
                           {customer.email || "-"}
                         </TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden md:table-cell py-2 sm:py-4">
+                        <TableCell className="text-xs sm:text-sm py-2 sm:py-4">
                           {customer.phone || "-"}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()} className="py-2 sm:py-4">
@@ -920,52 +988,51 @@ function CustomerDetail({
             </Card>
 
             <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row justify-between gap-4">
-                  <CardTitle>Transacciones Pendientes</CardTitle>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="flex gap-2 items-center">
-                      <Calendar className="w-4 h-4" />
-                      <Input
-                        type="date"
-                        placeholder="Desde"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-36"
-                      />
-                      <span className="text-muted-foreground">-</span>
-                      <Input
-                        type="date"
-                        placeholder="Hasta"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-36"
-                      />
-                      {(startDate || endDate) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setStartDate("");
-                            setEndDate("");
-                          }}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
+              <CardHeader className="p-3 sm:p-6">
+                <div className="flex flex-col gap-3">
+                  <CardTitle className="text-base sm:text-lg">Transacciones Pendientes</CardTitle>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Calendar className="w-4 h-4 shrink-0 hidden sm:block" />
+                    <Input
+                      type="date"
+                      placeholder="Desde"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full sm:w-32 h-8 text-xs"
+                    />
+                    <span className="text-muted-foreground hidden sm:inline">-</span>
+                    <Input
+                      type="date"
+                      placeholder="Hasta"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full sm:w-32 h-8 text-xs"
+                    />
+                    {(startDate || endDate) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setStartDate("");
+                          setEndDate("");
+                        }}
+                        className="h-8"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-2 sm:p-6 pt-0 space-y-4">
                 {selectedTransactions.length > 0 && (
-                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 space-y-2">
+                    <div className="flex flex-col gap-2">
                       <div>
-                        <p className="font-semibold">
-                          {selectedTransactions.length} transacciones seleccionadas
+                        <p className="font-semibold text-sm">
+                          {selectedTransactions.length} seleccionadas
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Total: ${selectedTotal.toFixed(2)}
                         </p>
                       </div>
@@ -974,6 +1041,7 @@ function CustomerDetail({
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedTransactions([])}
+                          className="h-8 text-xs"
                         >
                           Cancelar
                         </Button>
@@ -981,221 +1049,376 @@ function CustomerDetail({
                           size="sm"
                           variant="destructive"
                           onClick={handleDeleteSelected}
+                          className="h-8 text-xs"
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-3 h-3 mr-1" />
                           Eliminar
                         </Button>
                         <Button
                           size="sm"
                           onClick={handlePaySelected}
-                          className="whitespace-nowrap"
+                          className="h-8 text-xs"
                         >
-                          <CheckSquare className="w-4 h-4 mr-2" />
-                          Marcar Pagado
+                          <CheckSquare className="w-3 h-3 mr-1" />
+                          Pagado
                         </Button>
                       </div>
                     </div>
                   </div>
                 )}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={selectedTransactions.length === filteredPendingTransactions.length && filteredPendingTransactions.length > 0}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Detalle</TableHead>
-                      <TableHead>Monto</TableHead>
-                      <TableHead>Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPendingTransactions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          No hay transacciones pendientes
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredPendingTransactions.map((transaction) => {
-                        const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
-                        return (
-                          <TableRow key={transaction.id} className={isPendingSale ? "bg-warning/5" : ""}>
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedTransactions.includes(transaction.id)}
-                                onCheckedChange={(checked) =>
-                                  handleSelectTransaction(transaction.id, checked as boolean)
-                                }
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="text-sm">
-                                  {new Date(transaction.created_at).toLocaleDateString()}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(transaction.created_at).toLocaleTimeString()}
-                                </span>
+                
+                {/* Mobile/Tablet Card View for Transactions */}
+                <div className="lg:hidden space-y-2">
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <Checkbox
+                      checked={selectedTransactions.length === filteredPendingTransactions.length && filteredPendingTransactions.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <span className="text-xs text-muted-foreground">Seleccionar todas</span>
+                  </div>
+                  {filteredPendingTransactions.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8 text-sm">
+                      No hay transacciones pendientes
+                    </p>
+                  ) : (
+                    filteredPendingTransactions.map((transaction) => {
+                      const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
+                      return (
+                        <Card key={transaction.id} className={`p-3 ${isPendingSale ? "bg-warning/5" : ""}`}>
+                          <div className="flex items-start gap-2">
+                            <Checkbox
+                              checked={selectedTransactions.includes(transaction.id)}
+                              onCheckedChange={(checked) =>
+                                handleSelectTransaction(transaction.id, checked as boolean)
+                              }
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {isPendingSale ? (
+                                      <Badge variant="destructive" className="text-[10px]">
+                                        Venta Pendiente
+                                      </Badge>
+                                    ) : (
+                                      <Badge
+                                        variant={transaction.type === "debt" ? "destructive" : "default"}
+                                        className="text-[10px]"
+                                      >
+                                        {transaction.type === "debt" ? "Deuda" : "Pago"}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(transaction.created_at).toLocaleDateString()}{" "}
+                                    {new Date(transaction.created_at).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                                <p className="font-bold text-destructive text-sm shrink-0">
+                                  ${Number(transaction.amount).toFixed(2)}
+                                </p>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1">
-                                {isPendingSale ? (
-                                  <>
-                                    <Badge variant="destructive" className="w-fit">
-                                      Venta Pendiente
-                                    </Badge>
-                                    <Badge variant="outline" className="w-fit text-xs">
-                                      Sin pagar
-                                    </Badge>
-                                  </>
-                                ) : (
-                                  <Badge
-                                    variant={
-                                      transaction.type === "debt" ? "destructive" : "default"
-                                    }
-                                  >
-                                    {transaction.type === "debt" ? "Deuda" : "Pago"}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-xs">
-                              <div className="text-sm">
-                                {transaction.description || "-"}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-destructive">
-                              ${Number(transaction.amount).toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
+                              {transaction.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                  {transaction.description}
+                                </p>
+                              )}
+                              <div className="flex gap-1 pt-1">
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => markAsPaid(transaction.id)}
-                                  className="whitespace-nowrap"
+                                  className="h-7 text-xs flex-1"
                                 >
-                                  <CheckSquare className="w-4 h-4 mr-1" />
+                                  <CheckSquare className="w-3 h-3 mr-1" />
                                   Pagado
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="destructive"
                                   onClick={() => deleteTransaction(transaction.id)}
+                                  className="h-7 w-7 p-0"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-3 h-3" />
                                 </Button>
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Desktop Table View for Transactions */}
+                <div className="hidden lg:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectedTransactions.length === filteredPendingTransactions.length && filteredPendingTransactions.length > 0}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        </TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Detalle</TableHead>
+                        <TableHead>Monto</TableHead>
+                        <TableHead>Acción</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPendingTransactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            No hay transacciones pendientes
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPendingTransactions.map((transaction) => {
+                          const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
+                          return (
+                            <TableRow key={transaction.id} className={isPendingSale ? "bg-warning/5" : ""}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedTransactions.includes(transaction.id)}
+                                  onCheckedChange={(checked) =>
+                                    handleSelectTransaction(transaction.id, checked as boolean)
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-sm">
+                                    {new Date(transaction.created_at).toLocaleDateString()}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(transaction.created_at).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  {isPendingSale ? (
+                                    <>
+                                      <Badge variant="destructive" className="w-fit">
+                                        Venta Pendiente
+                                      </Badge>
+                                      <Badge variant="outline" className="w-fit text-xs">
+                                        Sin pagar
+                                      </Badge>
+                                    </>
+                                  ) : (
+                                    <Badge
+                                      variant={
+                                        transaction.type === "debt" ? "destructive" : "default"
+                                      }
+                                    >
+                                      {transaction.type === "debt" ? "Deuda" : "Pago"}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-xs">
+                                <div className="text-sm">
+                                  {transaction.description || "-"}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-semibold text-destructive">
+                                ${Number(transaction.amount).toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => markAsPaid(transaction.id)}
+                                    className="whitespace-nowrap"
+                                  >
+                                    <CheckSquare className="w-4 h-4 mr-1" />
+                                    Pagado
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteTransaction(transaction.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Historial de Pagos</CardTitle>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Historial de Pagos</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha Venta/Deuda</TableHead>
-                      <TableHead>Fecha Pago</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Detalle</TableHead>
-                      <TableHead>Monto</TableHead>
-                      <TableHead>Días hasta Pago</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paidTransactions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          No hay pagos registrados
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paidTransactions.map((transaction) => {
-                        const createdDate = new Date(transaction.created_at);
-                        const paidDate = transaction.paid_at ? new Date(transaction.paid_at) : null;
-                        const daysToPay = paidDate 
-                          ? Math.ceil((paidDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-                          : 0;
-                        const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
-                        
-                        return (
-                          <TableRow key={transaction.id}>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="text-sm">
-                                  {createdDate.toLocaleDateString()}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {createdDate.toLocaleTimeString()}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {paidDate ? (
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-semibold text-green-600">
-                                    {paidDate.toLocaleDateString()}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {paidDate.toLocaleTimeString()}
-                                  </span>
-                                </div>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell>
+              <CardContent className="p-2 sm:p-6 pt-0">
+                {/* Mobile/Tablet Card View for Payment History */}
+                <div className="lg:hidden space-y-2">
+                  {paidTransactions.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8 text-sm">
+                      No hay pagos registrados
+                    </p>
+                  ) : (
+                    paidTransactions.map((transaction) => {
+                      const createdDate = new Date(transaction.created_at);
+                      const paidDate = transaction.paid_at ? new Date(transaction.paid_at) : null;
+                      const daysToPay = paidDate 
+                        ? Math.ceil((paidDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+                        : 0;
+                      const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
+                      
+                      return (
+                        <Card key={transaction.id} className="p-3">
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-col gap-1">
                                 {isPendingSale ? (
-                                  <Badge variant="outline" className="w-fit bg-green-50">
+                                  <Badge variant="outline" className="w-fit bg-green-50 text-[10px]">
                                     Venta Pagada
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline">
+                                  <Badge variant="outline" className="text-[10px]">
                                     {transaction.type === "debt" ? "Deuda Pagada" : "Pago"}
                                   </Badge>
                                 )}
+                                <p className="text-xs text-muted-foreground">
+                                  Creado: {createdDate.toLocaleDateString()}
+                                </p>
+                                {paidDate && (
+                                  <p className="text-xs text-green-600 font-medium">
+                                    Pagado: {paidDate.toLocaleDateString()}
+                                  </p>
+                                )}
                               </div>
-                            </TableCell>
-                            <TableCell className="max-w-xs">
-                              <div className="text-sm">
-                                {transaction.description || "-"}
+                              <div className="text-right shrink-0">
+                                <p className="font-bold text-green-600 text-sm">
+                                  ${Number(transaction.amount).toFixed(2)}
+                                </p>
+                                {daysToPay > 0 ? (
+                                  <Badge variant="secondary" className="text-[10px] mt-1">
+                                    {daysToPay} {daysToPay === 1 ? "día" : "días"}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">Mismo día</span>
+                                )}
                               </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-green-600">
-                              ${Number(transaction.amount).toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              {daysToPay > 0 ? (
-                                <Badge variant="secondary">
-                                  {daysToPay} {daysToPay === 1 ? "día" : "días"}
-                                </Badge>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Mismo día</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                            </div>
+                            {transaction.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {transaction.description}
+                              </p>
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Desktop Table View for Payment History */}
+                <div className="hidden lg:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha Venta/Deuda</TableHead>
+                        <TableHead>Fecha Pago</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Detalle</TableHead>
+                        <TableHead>Monto</TableHead>
+                        <TableHead>Días hasta Pago</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paidTransactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            No hay pagos registrados
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paidTransactions.map((transaction) => {
+                          const createdDate = new Date(transaction.created_at);
+                          const paidDate = transaction.paid_at ? new Date(transaction.paid_at) : null;
+                          const daysToPay = paidDate 
+                            ? Math.ceil((paidDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+                            : 0;
+                          const isPendingSale = transaction.description?.startsWith("Venta pendiente:");
+                          
+                          return (
+                            <TableRow key={transaction.id}>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-sm">
+                                    {createdDate.toLocaleDateString()}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {createdDate.toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {paidDate ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-green-600">
+                                      {paidDate.toLocaleDateString()}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {paidDate.toLocaleTimeString()}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  "-"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  {isPendingSale ? (
+                                    <Badge variant="outline" className="w-fit bg-green-50">
+                                      Venta Pagada
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline">
+                                      {transaction.type === "debt" ? "Deuda Pagada" : "Pago"}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-xs">
+                                <div className="text-sm">
+                                  {transaction.description || "-"}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-semibold text-green-600">
+                                ${Number(transaction.amount).toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                {daysToPay > 0 ? (
+                                  <Badge variant="secondary">
+                                    {daysToPay} {daysToPay === 1 ? "día" : "días"}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Mismo día</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1208,26 +1431,67 @@ function CustomerDetail({
 function DebtsSummary({ customers }: { customers: Customer[] }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Resumen de Deudas</CardTitle>
+      <CardHeader className="p-3 sm:p-6">
+        <CardTitle className="text-base sm:text-lg">Resumen de Deudas</CardTitle>
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente/Proveedor</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Balance</TableHead>
-              <TableHead>Pendientes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map((customer) => (
-              <DebtRow key={customer.id} customer={customer} />
-            ))}
-          </TableBody>
-        </Table>
+      <CardContent className="p-2 sm:p-6 pt-0">
+        {/* Mobile/Tablet Card View */}
+        <div className="lg:hidden space-y-2">
+          {customers.map((customer) => (
+            <DebtCardRow key={customer.id} customer={customer} />
+          ))}
+        </div>
+        {/* Desktop Table View */}
+        <div className="hidden lg:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente/Proveedor</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Balance</TableHead>
+                <TableHead>Pendientes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {customers.map((customer) => (
+                <DebtRow key={customer.id} customer={customer} />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
+    </Card>
+  );
+}
+
+function DebtCardRow({ customer }: { customer: Customer }) {
+  const { getBalance, transactions } = useCustomerTransactions(customer.id);
+  const balance = getBalance();
+  const pendingCount = transactions.filter((t) => t.status === "pending").length;
+
+  if (balance === 0) return null;
+
+  return (
+    <Card className="p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-medium text-sm truncate">{customer.name}</p>
+            <Badge
+              variant={customer.type === "cliente" ? "default" : "secondary"}
+              className="text-[10px] shrink-0"
+            >
+              {customer.type === "cliente" ? "Cliente" : "Proveedor"}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {pendingCount} pendiente{pendingCount !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <p className={`font-bold text-sm shrink-0 ${balance > 0 ? "text-destructive" : "text-green-500"}`}>
+          ${balance.toFixed(2)}
+        </p>
+      </div>
     </Card>
   );
 }
