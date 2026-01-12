@@ -414,12 +414,26 @@ export default function POS() {
     }
 
     try {
+      // Verificar stock actual de la base de datos
+      const productIds = cart.map(item => item.id);
+      const { data: currentProducts, error: fetchError } = await supabase
+        .from('products')
+        .select('id, name, stock')
+        .in('id', productIds);
+
+      if (fetchError) throw fetchError;
+
+      // Crear mapa de stock actual
+      const stockMap = new Map<string, number>();
+      currentProducts?.forEach(p => stockMap.set(p.id, p.stock));
+
       // Reducir stock de productos
       for (const item of cart) {
-        const newStock = (item.stock || 0) - item.quantity;
+        const currentStock = stockMap.get(item.id) ?? 0;
+        const newStock = currentStock - item.quantity;
         
-        if (newStock < 0) {
-          toast.error(`Stock insuficiente para ${item.name}`);
+        if (newStock < 0 && !settings?.allow_negative_stock) {
+          toast.error(`Stock insuficiente para ${item.name}. Disponible: ${currentStock}`);
           return;
         }
 
@@ -538,12 +552,27 @@ export default function POS() {
           toast.success("Venta guardada para sincronización");
         }
       } else {
-        // Modo online: procesar normalmente
+        // Modo online: verificar stock actual de la base de datos
+        const productIds = cart.map(item => item.id);
+        const { data: currentProducts, error: fetchError } = await supabase
+          .from('products')
+          .select('id, name, stock')
+          .in('id', productIds);
+
+        if (fetchError) throw fetchError;
+
+        // Crear mapa de stock actual
+        const stockMap = new Map<string, number>();
+        currentProducts?.forEach(p => stockMap.set(p.id, p.stock));
+
+        // Procesar cada item del carrito
         for (const item of cart) {
-          const newStock = (item.stock || 0) - item.quantity;
+          const currentStock = stockMap.get(item.id) ?? 0;
+          const newStock = currentStock - item.quantity;
           
-          if (newStock < 0) {
-            toast.error(`Stock insuficiente para ${item.name}`);
+          if (newStock < 0 && !settings?.allow_negative_stock) {
+            toast.error(`Stock insuficiente para ${item.name}. Disponible: ${currentStock}`);
+            setIsProcessing(false);
             return;
           }
 
@@ -578,8 +607,8 @@ export default function POS() {
         if (saleError) throw saleError;
 
         // Generar transacciones automáticas para proveedores
-        const productIds = cart.map(item => item.id);
-        console.log("🔍 Buscando productos vinculados a proveedores. IDs:", productIds);
+        const supplierProductIds = cart.map(item => item.id);
+        console.log("🔍 Buscando productos vinculados a proveedores. IDs:", supplierProductIds);
         
         // Obtener productos vinculados a proveedores
         const { data: customerProducts, error: cpError } = await supabase
@@ -588,7 +617,7 @@ export default function POS() {
             *,
             customer:customers(id, name, type)
           `)
-          .in('product_id', productIds);
+          .in('product_id', supplierProductIds);
 
         if (cpError) {
           console.error("❌ Error fetching customer products:", cpError);
