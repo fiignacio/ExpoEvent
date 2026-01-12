@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types/product";
 import { toast } from "sonner";
@@ -7,9 +7,56 @@ export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const mapProductData = useCallback((item: any): Product => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+    category: item.category,
+    stock: item.stock,
+    price: Number(item.price),
+    cost: Number(item.cost),
+    ...(item.promotion_type && {
+      promotion: {
+        type: item.promotion_type as "bulk" | "percentage" | "fixed",
+        ...(item.promotion_quantity && { quantity: item.promotion_quantity }),
+        ...(item.promotion_discounted_price && { discountedPrice: Number(item.promotion_discounted_price) }),
+        ...(item.promotion_discount_percentage && { discountPercentage: Number(item.promotion_discount_percentage) }),
+        ...(item.promotion_discount_amount && { discountAmount: Number(item.promotion_discount_amount) }),
+      }
+    })
+  }), []);
+
   useEffect(() => {
     fetchProducts();
-  }, []);
+
+    // Suscripción realtime para actualizaciones de stock
+    const channel = supabase
+      .channel('products-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'products'
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newProduct = mapProductData(payload.new);
+            setProducts(prev => [...prev, newProduct].sort((a, b) => a.name.localeCompare(b.name)));
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedProduct = mapProductData(payload.new);
+            setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+          } else if (payload.eventType === 'DELETE') {
+            setProducts(prev => prev.filter(p => p.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mapProductData]);
 
   const fetchProducts = async () => {
     try {
@@ -20,25 +67,7 @@ export function useProducts() {
 
       if (error) throw error;
 
-      const mappedProducts: Product[] = (data || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        sku: item.sku,
-        category: item.category,
-        stock: item.stock,
-        price: Number(item.price),
-        cost: Number(item.cost),
-        ...(item.promotion_type && {
-          promotion: {
-            type: item.promotion_type as "bulk" | "percentage" | "fixed",
-            ...(item.promotion_quantity && { quantity: item.promotion_quantity }),
-            ...(item.promotion_discounted_price && { discountedPrice: Number(item.promotion_discounted_price) }),
-            ...(item.promotion_discount_percentage && { discountPercentage: Number(item.promotion_discount_percentage) }),
-            ...(item.promotion_discount_amount && { discountAmount: Number(item.promotion_discount_amount) }),
-          }
-        })
-      }));
-
+      const mappedProducts: Product[] = (data || []).map(mapProductData);
       setProducts(mappedProducts);
     } catch (error: any) {
       toast.error("Error al cargar productos");

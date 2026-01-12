@@ -299,8 +299,8 @@ export default function POS() {
     const existingItem = cart.find(item => item.id === product.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
     
-    // Verificar stock disponible
-    if (currentQuantity + 1 > product.stock) {
+    // Verificar stock disponible (solo si no se permite stock negativo)
+    if (!settings?.allow_negative_stock && currentQuantity + 1 > product.stock) {
       toast.error(`Stock insuficiente. Solo hay ${product.stock} unidades disponibles`);
       return;
     }
@@ -312,7 +312,7 @@ export default function POS() {
     if (existingItem) {
       const newCart = cart.map(item =>
         item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { ...item, quantity: item.quantity + 1, stock: product.stock }
           : item
       );
       setCart(newCart);
@@ -365,15 +365,19 @@ export default function POS() {
 
     const newQuantity = item.quantity + delta;
     
-    // Verificar stock disponible al aumentar cantidad
-    if (delta > 0 && newQuantity > item.stock) {
-      toast.error(`Stock insuficiente. Solo hay ${item.stock} unidades disponibles`);
+    // Obtener stock actual del producto
+    const currentProduct = products.find(p => p.id === id);
+    const currentStock = currentProduct?.stock ?? item.stock;
+    
+    // Verificar stock disponible al aumentar cantidad (solo si no se permite stock negativo)
+    if (delta > 0 && !settings?.allow_negative_stock && newQuantity > currentStock) {
+      toast.error(`Stock insuficiente. Solo hay ${currentStock} unidades disponibles`);
       return;
     }
 
     const newCart = cart.map(cartItem => {
       if (cartItem.id === id) {
-        return newQuantity > 0 ? { ...cartItem, quantity: newQuantity } : cartItem;
+        return newQuantity > 0 ? { ...cartItem, quantity: newQuantity, stock: currentStock } : cartItem;
       }
       return cartItem;
     }).filter(cartItem => cartItem.quantity > 0);
@@ -1027,7 +1031,15 @@ export default function POS() {
                     </Tooltip>
                   </TooltipProvider>
                   <p className="text-[10px] md:text-xs text-muted-foreground mb-1">{product.category}</p>
-                  <p className="text-base md:text-xl font-bold text-success">${product.price.toFixed(2)}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-base md:text-xl font-bold text-success">${product.price.toFixed(2)}</p>
+                    <Badge 
+                      variant={product.stock <= 0 ? "destructive" : product.stock <= 5 ? "secondary" : "outline"}
+                      className="text-[10px] md:text-xs"
+                    >
+                      {product.stock} uds
+                    </Badge>
+                  </div>
                 </CardContent>
               </Card>
             );
