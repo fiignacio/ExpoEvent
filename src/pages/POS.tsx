@@ -345,7 +345,8 @@ export default function POS() {
 
     const discount = calculatePromotionDiscount(item);
     
-    if (discount > 0 && item.appliedDiscount !== discount) {
+    // Siempre actualizar el descuento (incluso a 0 si ya no califica)
+    if (item.appliedDiscount !== discount) {
       setCart(currentCart.map(i => 
         i.id === productId 
           ? { ...i, appliedDiscount: discount }
@@ -353,8 +354,10 @@ export default function POS() {
       ));
       
       const promoLabel = getPromotionLabel(item);
-      if (item.promotion.type === "bulk" && item.quantity >= (item.promotion.quantity || 0)) {
+      if (discount > 0 && item.promotion.type === "bulk" && item.quantity >= (item.promotion.quantity || 0)) {
         toast.success(`¡Promoción aplicada! ${promoLabel}`);
+      } else if (discount === 0 && (item.appliedDiscount || 0) > 0) {
+        toast.info("Promoción removida - cantidad mínima no alcanzada");
       }
     }
   };
