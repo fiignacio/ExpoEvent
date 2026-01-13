@@ -51,9 +51,13 @@ export type Database = {
         Row: {
           closed_at: string | null
           created_at: string
+          denomination_breakdown: Json | null
+          difference: number | null
+          expected_amount: number | null
           final_amount: number | null
           id: string
           initial_amount: number
+          notes: string | null
           opened_at: string
           status: string
           updated_at: string
@@ -62,9 +66,13 @@ export type Database = {
         Insert: {
           closed_at?: string | null
           created_at?: string
+          denomination_breakdown?: Json | null
+          difference?: number | null
+          expected_amount?: number | null
           final_amount?: number | null
           id?: string
           initial_amount?: number
+          notes?: string | null
           opened_at?: string
           status?: string
           updated_at?: string
@@ -73,15 +81,54 @@ export type Database = {
         Update: {
           closed_at?: string | null
           created_at?: string
+          denomination_breakdown?: Json | null
+          difference?: number | null
+          expected_amount?: number | null
           final_amount?: number | null
           id?: string
           initial_amount?: number
+          notes?: string | null
           opened_at?: string
           status?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      cash_withdrawals: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          id: string
+          reason: string
+          session_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          id?: string
+          reason: string
+          session_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          reason?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_withdrawals_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_register_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_products: {
         Row: {
@@ -219,6 +266,7 @@ export type Database = {
           paid_in_usd: boolean | null
           payment_method: string
           session_id: string | null
+          status: string
           subtotal: number
           synced: boolean
           synced_at: string | null
@@ -237,6 +285,7 @@ export type Database = {
           paid_in_usd?: boolean | null
           payment_method: string
           session_id?: string | null
+          status?: string
           subtotal: number
           synced?: boolean
           synced_at?: string | null
@@ -255,6 +304,7 @@ export type Database = {
           paid_in_usd?: boolean | null
           payment_method?: string
           session_id?: string | null
+          status?: string
           subtotal?: number
           synced?: boolean
           synced_at?: string | null
@@ -354,6 +404,50 @@ export type Database = {
         }
         Relationships: []
       }
+      returns: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          items: Json
+          reason: string
+          refund_method: string
+          sale_id: string
+          total_refunded: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          items: Json
+          reason: string
+          refund_method: string
+          sale_id: string
+          total_refunded: number
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          items?: Json
+          reason?: string
+          refund_method?: string
+          sale_id?: string
+          total_refunded?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "offline_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string
@@ -449,6 +543,56 @@ export type Database = {
           usd_exchange_rate?: number | null
         }
         Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          new_stock: number
+          notes: string | null
+          previous_stock: number
+          product_id: string
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          new_stock: number
+          notes?: string | null
+          previous_stock: number
+          product_id: string
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          new_stock?: number
+          notes?: string | null
+          previous_stock?: number
+          product_id?: string
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
