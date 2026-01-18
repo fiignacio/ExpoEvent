@@ -440,16 +440,18 @@ function CustomerDetail({
   allProducts: any[];
 }) {
   const { products, addProduct, addMultipleProducts, removeProduct, updateProductPrice } = useCustomerProducts(customer.id);
-  const { transactions, addTransaction, markAsPaid, markMultipleAsPaid, deleteTransaction, deleteMultipleTransactions, getBalance } =
+  const { transactions, addTransaction, updateTransaction, markAsPaid, markMultipleAsPaid, deleteTransaction, deleteMultipleTransactions, getBalance } =
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [debtFromProductsDialogOpen, setDebtFromProductsDialogOpen] = useState(false);
+  const [editTransactionDialogOpen, setEditTransactionDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [transactionAmount, setTransactionAmount] = useState("");
   const [transactionDescription, setTransactionDescription] = useState("");
   const [transactionType, setTransactionType] = useState<"debt" | "payment">("debt");
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
-  const [selectedProductsForDebt, setSelectedProductsForDebt] = useState<Map<string, number>>(new Map());
+  const [selectedProductsForDebt, setSelectedProductsForDebt] = useState<Map<string, { price: number; quantity: number; productId: string; productName: string }>>(new Map());
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -483,27 +485,32 @@ function CustomerDetail({
     setTransactionDescription("");
   };
 
-  const handleToggleProductForDebt = (productId: string, price: number, checked: boolean) => {
+  const handleToggleProductForDebt = (productId: string, productName: string, price: number, checked: boolean) => {
     const newSelected = new Map(selectedProductsForDebt);
     if (checked) {
-      newSelected.set(productId, price);
+      newSelected.set(productId, { price, quantity: 1, productId, productName });
     } else {
       newSelected.delete(productId);
     }
     setSelectedProductsForDebt(newSelected);
   };
 
-  const handleQuantityChange = (productId: string, price: number, quantity: number) => {
+  const handleQuantityChange = (productId: string, productName: string, price: number, quantity: number) => {
     const newSelected = new Map(selectedProductsForDebt);
-    newSelected.set(productId, price * quantity);
+    newSelected.set(productId, { price, quantity, productId, productName });
     setSelectedProductsForDebt(newSelected);
   };
 
   const handleSelectAllProductsForDebt = (checked: boolean) => {
     if (checked) {
-      const newSelected = new Map<string, number>();
+      const newSelected = new Map<string, { price: number; quantity: number; productId: string; productName: string }>();
       products.forEach((p) => {
-        newSelected.set(p.id, Number(p.price));
+        newSelected.set(p.id, { 
+          price: Number(p.price), 
+          quantity: 1, 
+          productId: p.product_id, 
+          productName: p.product?.name || 'Producto'
+        });
       });
       setSelectedProductsForDebt(newSelected);
     } else {
@@ -511,18 +518,47 @@ function CustomerDetail({
     }
   };
 
-  const selectedProductsTotal = Array.from(selectedProductsForDebt.values()).reduce((sum, price) => sum + price, 0);
+  const selectedProductsTotal = Array.from(selectedProductsForDebt.values()).reduce(
+    (sum, item) => sum + (item.price * item.quantity), 0
+  );
+
+  const handleEditTransaction = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setTransactionAmount(String(transaction.amount));
+    setTransactionDescription(transaction.description || "");
+    setTransactionType(transaction.type);
+    setEditTransactionDialogOpen(true);
+  };
+
+  const handleSaveEditTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTransaction) return;
+    
+    await updateTransaction(editingTransaction.id, {
+      amount: Number(transactionAmount),
+      description: transactionDescription,
+      type: transactionType,
+    });
+    
+    setEditTransactionDialogOpen(false);
+    setEditingTransaction(null);
+    setTransactionAmount("");
+    setTransactionDescription("");
+  };
 
   const handleCreateDebtFromProducts = async () => {
     if (selectedProductsForDebt.size === 0) return;
     
-    const productNames = products
-      .filter((p) => selectedProductsForDebt.has(p.id))
-      .map((p) => p.product?.name)
-      .join(", ");
+    const productItems = Array.from(selectedProductsForDebt.values()).map(item => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      productName: item.productName,
+    }));
     
+    const productNames = productItems.map(p => `${p.quantity}x ${p.productName}`).join(", ");
     const description = `Deuda por productos: ${productNames}`;
-    await addTransaction("debt", selectedProductsTotal, description);
+    
+    await addTransaction("debt", selectedProductsTotal, description, productItems);
     
     setSelectedProductsForDebt(new Map());
     setDebtFromProductsDialogOpen(false);
@@ -661,10 +697,11 @@ function CustomerDetail({
                           </TableHeader>
                           <TableBody>
                             {products.map((product) => {
-                              const isSelected = selectedProductsForDebt.has(product.id);
+                              const selectedItem = selectedProductsForDebt.get(product.id);
+                              const isSelected = !!selectedItem;
                               const basePrice = Number(product.price);
-                              const currentTotal = selectedProductsForDebt.get(product.id) || basePrice;
-                              const quantity = Math.round(currentTotal / basePrice) || 1;
+                              const quantity = selectedItem?.quantity || 1;
+                              const subtotal = isSelected ? basePrice * quantity : basePrice;
                               
                               return (
                                 <TableRow key={product.id}>
@@ -672,7 +709,7 @@ function CustomerDetail({
                                     <Checkbox
                                       checked={isSelected}
                                       onCheckedChange={(checked) => 
-                                        handleToggleProductForDebt(product.id, basePrice, !!checked)
+                                        handleToggleProductForDebt(product.id, product.product?.name || 'Producto', basePrice, !!checked)
                                       }
                                     />
                                   </TableCell>
@@ -682,16 +719,16 @@ function CustomerDetail({
                                     <Input
                                       type="number"
                                       min="1"
-                                      value={isSelected ? quantity : 1}
+                                      value={quantity}
                                       onChange={(e) => 
-                                        handleQuantityChange(product.id, basePrice, Number(e.target.value) || 1)
+                                        handleQuantityChange(product.id, product.product?.name || 'Producto', basePrice, Number(e.target.value) || 1)
                                       }
                                       className="w-20 h-8"
                                       disabled={!isSelected}
                                     />
                                   </TableCell>
                                   <TableCell className="font-medium">
-                                    ${isSelected ? currentTotal.toFixed(2) : basePrice.toFixed(2)}
+                                    ${subtotal.toFixed(2)}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -1127,6 +1164,14 @@ function CustomerDetail({
                               <div className="flex gap-1 pt-1">
                                 <Button
                                   size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditTransaction(transaction)}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   onClick={() => markAsPaid(transaction.id)}
                                   className="h-7 text-xs flex-1"
@@ -1231,6 +1276,13 @@ function CustomerDetail({
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditTransaction(transaction)}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1423,6 +1475,68 @@ function CustomerDetail({
             </Card>
           </TabsContent>
         </Tabs>
+        
+        {/* Diálogo de edición de transacción */}
+        <Dialog open={editTransactionDialogOpen} onOpenChange={setEditTransactionDialogOpen}>
+          <DialogContent className="max-h-[85vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>Editar Transacción</DialogTitle>
+              <DialogDescription>
+                Modifica los datos de la transacción
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSaveEditTransaction} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  value={transactionType}
+                  onValueChange={(value: "debt" | "payment") =>
+                    setTransactionType(value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="debt">Deuda</SelectItem>
+                    <SelectItem value="payment">Pago</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Monto</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={transactionAmount}
+                  onChange={(e) => setTransactionAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Descripción</Label>
+                <Textarea
+                  value={transactionDescription}
+                  onChange={(e) => setTransactionDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <DialogFooter className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditTransactionDialogOpen(false);
+                    setEditingTransaction(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit">Guardar Cambios</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
