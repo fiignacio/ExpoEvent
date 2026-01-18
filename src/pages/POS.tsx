@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock, User, Banknote, CircleDollarSign } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, Plus, Minus, Trash2, CreditCard, Package, Tag, DollarSign, Smartphone, Building2, ShoppingCart, X, Lock, User, Banknote, CircleDollarSign, RotateCcw, Wallet, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,8 +38,12 @@ import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useIsMobile, useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { OpenCashDialog } from "@/components/OpenCashDialog";
 import { CloseCashDialog } from "@/components/CloseCashDialog";
+import { ReturnDialog } from "@/components/ReturnDialog";
+import { CashWithdrawalDialog } from "@/components/CashWithdrawalDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useKeyboardShortcuts, ShortcutsHelp } from "@/hooks/useKeyboardShortcuts";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type PaymentMethod = "efectivo" | "debito" | "credito" | "transferencia" | "mixto";
 
@@ -68,6 +72,8 @@ export default function POS() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showOpenCashDialog, setShowOpenCashDialog] = useState(false);
   const [showCloseCashDialog, setShowCloseCashDialog] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [receivedAmount, setReceivedAmount] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
@@ -86,6 +92,76 @@ export default function POS() {
   const [mixedCashAmount, setMixedCashAmount] = useState("");
   const [mixedPayInUsd, setMixedPayInUsd] = useState(false);
   const [mixedUsdAmount, setMixedUsdAmount] = useState("");
+  
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Función para normalizar texto (quitar acentos)
+  const normalizeText = (text: string): string => {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSearch: () => searchInputRef.current?.focus(),
+    onClearCart: () => {
+      if (cart.length > 0) {
+        setCart([]);
+        toast.info("Carrito limpiado");
+      }
+    },
+    onPendingSale: () => createNewSession(),
+    onProcessPayment: () => {
+      if (cart.length > 0) {
+        setShowPaymentDialog(true);
+      } else {
+        toast.error("El carrito está vacío");
+      }
+    },
+    onIncrementLast: () => {
+      if (cart.length > 0) {
+        const lastItem = cart[cart.length - 1];
+        const product = products.find(p => p.id === lastItem.id);
+        if (product) {
+          if (!settings?.allow_negative_stock && lastItem.quantity + 1 > product.stock) {
+            toast.error(`Stock insuficiente`);
+            return;
+          }
+          const newCart = cart.map((item, idx) =>
+            idx === cart.length - 1 ? { ...item, quantity: item.quantity + 1 } : item
+          );
+          setCart(newCart);
+          checkPromotion(newCart, lastItem.id);
+        }
+      }
+    },
+    onDecrementLast: () => {
+      if (cart.length > 0) {
+        const lastItem = cart[cart.length - 1];
+        if (lastItem.quantity > 1) {
+          const newCart = cart.map((item, idx) =>
+            idx === cart.length - 1 ? { ...item, quantity: item.quantity - 1 } : item
+          );
+          setCart(newCart);
+          checkPromotion(newCart, lastItem.id);
+        } else {
+          setCart(cart.filter((_, idx) => idx !== cart.length - 1));
+          toast.info("Producto eliminado");
+        }
+      }
+    },
+    onPaymentMethod: (method) => setPaymentMethod(method),
+    onEscape: () => {
+      if (showPaymentDialog) setShowPaymentDialog(false);
+      else if (showReturnDialog) setShowReturnDialog(false);
+      else if (showWithdrawalDialog) setShowWithdrawalDialog(false);
+    },
+    onEnter: () => {
+      if (showPaymentDialog && !isProcessing) {
+        processPayment();
+      }
+    },
+    enabled: currentSession !== null
+  });
 
   // Parse quick cash amounts from settings
   const quickCashAmounts = (): number[] => {
@@ -224,10 +300,11 @@ export default function POS() {
     toast.info("Carrito cerrado");
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const normalizedSearch = normalizeText(searchTerm);
+    return normalizeText(product.name).includes(normalizedSearch) ||
+           normalizeText(product.sku).includes(normalizedSearch);
+  });
 
   useEffect(() => {
     if (!sessionLoading && !currentSession) {
@@ -899,13 +976,46 @@ export default function POS() {
               </Badge>
             )}
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleOpenCloseCashDialog}
-          >
-            Cerrar Caja
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Ayuda de atajos */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <Keyboard className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72" align="end">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Atajos de Teclado</h4>
+                  <ShortcutsHelp />
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReturnDialog(true)}
+            >
+              <RotateCcw className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Devolución</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowWithdrawalDialog(true)}
+            >
+              <Wallet className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Retiro</span>
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleOpenCloseCashDialog}
+            >
+              Cerrar Caja
+            </Button>
+          </div>
         </div>
 
         {/* Tabs para múltiples carritos */}
@@ -960,7 +1070,8 @@ export default function POS() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 md:w-5 md:h-5" />
           <Input
-            placeholder="Buscar productos..."
+            ref={searchInputRef}
+            placeholder="Buscar productos... (F5)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9 md:pl-10 text-sm md:text-base"
@@ -1501,6 +1612,19 @@ export default function POS() {
         onConfirm={handleCloseCash}
         initialAmount={currentSession?.initial_amount || 0}
         paymentMethodTotals={paymentMethodTotals}
+      />
+      
+      {/* Diálogo de devoluciones */}
+      <ReturnDialog
+        open={showReturnDialog}
+        onOpenChange={setShowReturnDialog}
+      />
+      
+      {/* Diálogo de retiro de caja */}
+      <CashWithdrawalDialog
+        open={showWithdrawalDialog}
+        onOpenChange={setShowWithdrawalDialog}
+        sessionId={currentSession?.id || ""}
       />
     </div>
   );

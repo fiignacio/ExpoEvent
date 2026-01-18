@@ -26,6 +26,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -141,6 +142,11 @@ export const Navigation = () => {
                 </div>
               )}
               
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="text-sm text-muted-foreground">Tema</span>
+                <ThemeToggle />
+              </div>
+              
               <Button
                 variant="ghost"
                 className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -202,6 +208,11 @@ export const Navigation = () => {
       </div>
 
       <Separator className="my-4" />
+
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm text-muted-foreground">Tema</span>
+        <ThemeToggle />
+      </div>
 
       <Button
         variant="ghost"
