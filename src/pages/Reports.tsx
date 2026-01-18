@@ -12,11 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users, Download } from "lucide-react";
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Area } from "recharts";
+import { TrendingUp, TrendingDown, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users, Download, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
+import { useReportsComparison } from "@/hooks/useReportsComparison";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
 import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
@@ -44,6 +45,14 @@ export default function Reports() {
     fetchZReport,
     refresh: refreshReports
   } = useReports(activeDays);
+  
+  const {
+    comparison,
+    dailyComparison,
+    paymentMethodsComparison,
+    loading: comparisonLoading,
+    refresh: refreshComparison
+  } = useReportsComparison(activeDays);
   
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -195,6 +204,7 @@ export default function Reports() {
     setIsRefreshing(true);
     await Promise.all([
       refreshReports(),
+      refreshComparison(),
       loadTodayZReport(),
       fetchSessions(),
       fetchSupplierSales()
@@ -510,7 +520,12 @@ export default function Reports() {
                   <p className="text-base sm:text-xl lg:text-2xl font-bold text-success mt-0.5 sm:mt-1 truncate">
                     ${totalSales.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{getPeriodLabel()}</p>
+                  {comparison && (
+                    <div className={`flex items-center gap-1 text-[10px] sm:text-xs mt-0.5 ${comparison.changes.sales >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {comparison.changes.sales >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      <span>{Math.abs(comparison.changes.sales).toFixed(1)}% vs anterior</span>
+                    </div>
+                  )}
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-success flex items-center justify-center flex-shrink-0">
                   <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
@@ -525,7 +540,12 @@ export default function Reports() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">Transacciones</p>
                   <p className="text-base sm:text-xl lg:text-2xl font-bold mt-0.5 sm:mt-1">{totalTransactions}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{getPeriodLabel()}</p>
+                  {comparison && (
+                    <div className={`flex items-center gap-1 text-[10px] sm:text-xs mt-0.5 ${comparison.changes.transactions >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {comparison.changes.transactions >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      <span>{Math.abs(comparison.changes.transactions).toFixed(1)}% vs anterior</span>
+                    </div>
+                  )}
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
                   <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
@@ -542,7 +562,12 @@ export default function Reports() {
                   <p className="text-base sm:text-xl lg:text-2xl font-bold mt-0.5 sm:mt-1 truncate">
                     ${averageTicket.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">Por transacción</p>
+                  {comparison && (
+                    <div className={`flex items-center gap-1 text-[10px] sm:text-xs mt-0.5 ${comparison.changes.averageTicket >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {comparison.changes.averageTicket >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      <span>{Math.abs(comparison.changes.averageTicket).toFixed(1)}% vs anterior</span>
+                    </div>
+                  )}
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-warning flex items-center justify-center flex-shrink-0">
                   <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
@@ -557,7 +582,12 @@ export default function Reports() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">Productos Vendidos</p>
                   <p className="text-base sm:text-xl lg:text-2xl font-bold mt-0.5 sm:mt-1">{totalProductsSold.toLocaleString('es-CL')}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">{getPeriodLabel()}</p>
+                  {comparison && (
+                    <div className={`flex items-center gap-1 text-[10px] sm:text-xs mt-0.5 ${comparison.changes.productsSold >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {comparison.changes.productsSold >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      <span>{Math.abs(comparison.changes.productsSold).toFixed(1)}% vs anterior</span>
+                    </div>
+                  )}
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg sm:rounded-xl bg-gradient-subtle flex items-center justify-center flex-shrink-0">
                   <Package className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-muted-foreground" />
@@ -572,6 +602,7 @@ export default function Reports() {
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:w-auto sm:min-w-0">
             <TabsTrigger value="zreport" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Cierre Z</TabsTrigger>
+            <TabsTrigger value="comparison" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Comparativa</TabsTrigger>
             <TabsTrigger value="sales" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Ventas</TabsTrigger>
             <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Productos</TabsTrigger>
             <TabsTrigger value="categories" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Categorías</TabsTrigger>
@@ -739,6 +770,123 @@ export default function Reports() {
               </Card>
             </>
           ) : null}
+        </TabsContent>
+
+        {/* Tab de comparación con período anterior */}
+        <TabsContent value="comparison" className="space-y-4">
+          {comparisonLoading ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-8 text-muted-foreground">
+                  Cargando datos comparativos...
+                </div>
+              </CardContent>
+            </Card>
+          ) : !comparison ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay datos disponibles para comparar
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Resumen comparativo */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Comparación vs Período Anterior
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Período Actual</p>
+                      <p className="text-2xl font-bold text-success">${comparison.currentPeriod.sales.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</p>
+                      <p className="text-xs text-muted-foreground">{comparison.currentPeriod.transactions} transacciones</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Período Anterior</p>
+                      <p className="text-2xl font-bold">${comparison.previousPeriod.sales.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</p>
+                      <p className="text-xs text-muted-foreground">{comparison.previousPeriod.transactions} transacciones</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Variación Ventas</p>
+                      <p className={`text-2xl font-bold flex items-center gap-1 ${comparison.changes.sales >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {comparison.changes.sales >= 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                        {Math.abs(comparison.changes.sales).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Var. Ticket Promedio</p>
+                      <p className={`text-2xl font-bold flex items-center gap-1 ${comparison.changes.averageTicket >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {comparison.changes.averageTicket >= 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                        {Math.abs(comparison.changes.averageTicket).toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Gráfico comparativo diario */}
+              {dailyComparison.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ventas: Período Actual vs Anterior</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={350}>
+                      <ComposedChart data={dailyComparison}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value: number) => `$${value.toLocaleString('es-CL')}`}
+                        />
+                        <Legend />
+                        <Bar dataKey="currentPeriod" fill="#10b981" name="Período Actual" />
+                        <Line type="monotone" dataKey="previousPeriod" stroke="#6b7280" strokeWidth={2} strokeDasharray="5 5" name="Período Anterior" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Comparación por método de pago */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Comparación por Método de Pago</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {Object.entries(paymentMethodsComparison.current).map(([method, currentValue]) => {
+                      const previousValue = paymentMethodsComparison.previous[method] || 0;
+                      const change = previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : (currentValue > 0 ? 100 : 0);
+                      const methodLabels: Record<string, string> = {
+                        efectivo: 'Efectivo',
+                        debito: 'Débito',
+                        credito: 'Crédito',
+                        transferencia: 'Transferencia',
+                        mixto: 'Mixto'
+                      };
+                      return (
+                        <div key={method} className="p-3 bg-muted/50 rounded-lg">
+                          <p className="text-xs text-muted-foreground">{methodLabels[method]}</p>
+                          <p className="text-lg font-bold">${currentValue.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</p>
+                          <div className={`flex items-center gap-1 text-xs ${change >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                            <span>{Math.abs(change).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="sales" className="space-y-4">

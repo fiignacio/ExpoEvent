@@ -368,11 +368,53 @@ export const useCustomerTransactions = (customerId?: string) => {
   const addTransaction = async (
     type: "debt" | "payment",
     amount: number,
-    description?: string
+    description?: string,
+    productItems?: { productId: string; quantity: number; productName: string }[]
   ) => {
     if (!customerId) return;
 
     try {
+      // Si hay productos asociados y es una deuda, descontar stock
+      if (type === "debt" && productItems && productItems.length > 0) {
+        for (const item of productItems) {
+          // Obtener stock actual
+          const { data: product, error: fetchError } = await supabase
+            .from('products')
+            .select('stock, name')
+            .eq('id', item.productId)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          const newStock = (product?.stock || 0) - item.quantity;
+          
+          // Actualizar stock
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', item.productId);
+
+          if (updateError) throw updateError;
+
+          // Registrar movimiento de stock
+          const { error: movementError } = await supabase
+            .from('stock_movements')
+            .insert({
+              product_id: item.productId,
+              type: 'customer_debt',
+              quantity: -item.quantity,
+              previous_stock: product?.stock || 0,
+              new_stock: newStock,
+              notes: `Deuda registrada para cliente: ${description || 'Sin descripción'}`,
+              created_by: user?.id,
+            });
+
+          if (movementError) {
+            console.error('Error registering stock movement:', movementError);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from("customer_transactions")
         .insert([{
@@ -387,7 +429,36 @@ export const useCustomerTransactions = (customerId?: string) => {
 
       toast({
         title: type === "debt" ? "Deuda registrada" : "Pago registrado",
-        description: `Se ha registrado correctamente`,
+        description: productItems?.length 
+          ? `Se ha registrado correctamente y se descontó stock de ${productItems.length} producto(s)`
+          : `Se ha registrado correctamente`,
+      });
+
+      await fetchTransactions();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateTransaction = async (
+    id: string,
+    updates: { amount?: number; description?: string; type?: "debt" | "payment" }
+  ) => {
+    try {
+      const { error } = await supabase
+        .from("customer_transactions")
+        .update(updates)
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Transacción actualizada",
+        description: "La transacción se ha actualizado correctamente",
       });
 
       await fetchTransactions();
@@ -509,6 +580,7 @@ export const useCustomerTransactions = (customerId?: string) => {
     transactions,
     loading,
     addTransaction,
+    updateTransaction,
     markAsPaid,
     markMultipleAsPaid,
     deleteTransaction,
