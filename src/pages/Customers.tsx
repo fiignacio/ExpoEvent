@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus, RefreshCw, Download, List, LayoutGrid } from "lucide-react";
+import { Plus, Edit, Trash2, DollarSign, Package, Receipt, CheckSquare, Calendar, X, PackagePlus, RefreshCw, Download, List, LayoutGrid, Copy, MessageCircle } from "lucide-react";
 import { RefreshButton } from "@/components/RefreshButton";
 import {
   useCustomers,
@@ -53,6 +53,8 @@ import {
 import { useProducts } from "@/hooks/useProducts";
 import { BulkProductSelector } from "@/components/BulkProductSelector";
 import { exportCustomerSalesReport } from "@/utils/customerReportExport";
+
+import { useToast } from "@/hooks/use-toast";
 
 // Componente de confirmación para eliminar producto
 function DeleteProductConfirmDialog({ 
@@ -444,6 +446,7 @@ function CustomerDetail({
     useCustomerTransactions(customer.id);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const { toast } = useToast();
   const [debtFromProductsDialogOpen, setDebtFromProductsDialogOpen] = useState(false);
   const [editTransactionDialogOpen, setEditTransactionDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
@@ -617,6 +620,67 @@ function CustomerDetail({
   const selectedTotal = filteredPendingTransactions
     .filter((t) => selectedTransactions.includes(t.id))
     .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  // Group pending debt transactions to group by product
+  const groupedProducts = useMemo(() => {
+    const productSummary = new Map<string, { name: string; price: number; quantity: number }>();
+    
+    filteredPendingTransactions.forEach((t) => {
+      if (t.type !== "debt" || !t.description) return;
+      const matches = t.description.match(/(\d+)x\s+([^,]+)/g);
+      if (matches) {
+        matches.forEach((match) => {
+          const parts = match.match(/(\d+)x\s+(.+)/);
+          if (parts) {
+            const qty = parseInt(parts[1]);
+            const name = parts[2].trim();
+            const existing = productSummary.get(name);
+            const customerProduct = products.find((p) => p.product?.name === name);
+            const price = customerProduct ? Number(customerProduct.price) : 0;
+            
+            if (existing) {
+              productSummary.set(name, {
+                name,
+                price: existing.price || price,
+                quantity: existing.quantity + qty,
+              });
+            } else {
+              productSummary.set(name, { name, price, quantity: qty });
+            }
+          }
+        });
+      }
+    });
+    return Array.from(productSummary.values());
+  }, [filteredPendingTransactions, products]);
+
+  const groupedTotal = useMemo(() => 
+    groupedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0)
+  , [groupedProducts]);
+
+  const getSummaryText = () => {
+    let text = `Resumen de productos - ${customer.name}\n`;
+    text += `--------------------------\n`;
+    groupedProducts.forEach(item => {
+      text += `${item.quantity}x ${item.name} - $${(item.price * item.quantity).toLocaleString()}\n`;
+    });
+    text += `--------------------------\n`;
+    text += `Total: $${groupedTotal.toLocaleString()}`;
+    return text;
+  };
+
+  const handleCopySummary = () => {
+    navigator.clipboard.writeText(getSummaryText());
+    toast({
+      title: "Copiado",
+      description: "El resumen se ha copiado al portapapeles",
+    });
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(getSummaryText());
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
 
   return (
     <Card className="mt-4">
@@ -1025,126 +1089,107 @@ function CustomerDetail({
             </Card>
 
             {/* Resumen agrupado por producto */}
-            {(() => {
-              // Parse pending debt transactions to group by product
-              const productSummary = new Map<string, { name: string; price: number; quantity: number }>();
-              
-              filteredPendingTransactions.forEach((t) => {
-                if (t.type !== "debt" || !t.description) return;
-                // Match patterns like "2x ProductName" in descriptions
-                const matches = t.description.match(/(\d+)x\s+([^,]+)/g);
-                if (matches) {
-                  matches.forEach((match) => {
-                    const parts = match.match(/(\d+)x\s+(.+)/);
-                    if (parts) {
-                      const qty = parseInt(parts[1]);
-                      const name = parts[2].trim();
-                      const existing = productSummary.get(name);
-                      // Find customer product price
-                      const customerProduct = products.find(
-                        (p) => p.product?.name === name
-                      );
-                      const price = customerProduct ? Number(customerProduct.price) : 0;
-                      
-                      if (existing) {
-                        productSummary.set(name, {
-                          name,
-                          price: existing.price || price,
-                          quantity: existing.quantity + qty,
-                        });
-                      } else {
-                        productSummary.set(name, { name, price, quantity: qty });
-                      }
-                    }
-                  });
-                }
-              });
-
-              const groupedProducts = Array.from(productSummary.values());
-              const groupedTotal = groupedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
-
-              if (groupedProducts.length === 0) return null;
-
-              return (
-                <Card className="border-dashed">
-                  <CardHeader className="p-3 sm:p-6 pb-2">
-                    <div className="flex items-center justify-between">
+            {groupedProducts.length > 0 && (
+              <Card className="border-dashed">
+                <CardHeader className="p-3 sm:p-6 pb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="space-y-1">
                       <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                         <LayoutGrid className="w-4 h-4" />
                         Resumen por Producto
                       </CardTitle>
-                      <Badge variant="outline" className="text-xs">
+                      <p className="text-xs text-muted-foreground">
+                        Detalle agrupado de deudas pendientes por producto
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 text-xs"
+                        onClick={handleCopySummary}
+                      >
+                        <Copy className="w-3.5 h-3.5 mr-1.5" />
+                        Copiar
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 text-xs bg-green-500/10 hover:bg-green-500/20 text-green-600 border-green-200 dark:border-green-900"
+                        onClick={handleShareWhatsApp}
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+                        WhatsApp
+                      </Button>
+                      <Badge variant="outline" className="text-xs hidden sm:inline-flex">
                         {groupedProducts.length} producto(s)
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Detalle agrupado de deudas pendientes por producto
-                    </p>
-                  </CardHeader>
-                  <CardContent className="p-2 sm:p-6 pt-0">
-                    {/* Mobile view */}
-                    <div className="lg:hidden space-y-2">
-                      {groupedProducts.map((item) => (
-                        <Card key={item.name} className="p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{item.name}</p>
-                              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                <span>Precio: ${item.price.toLocaleString()}</span>
-                                <span>×</span>
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {item.quantity}
-                                </Badge>
-                              </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-2 sm:p-6 pt-0">
+                  {/* Mobile view */}
+                  <div className="lg:hidden space-y-2">
+                    {groupedProducts.map((item) => (
+                      <Card key={item.name} className="p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{item.name}</p>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <span>Precio: ${item.price.toLocaleString()}</span>
+                              <span>×</span>
+                              <Badge variant="secondary" className="text-[10px]">
+                                {item.quantity}
+                              </Badge>
                             </div>
-                            <p className="font-bold text-sm shrink-0">
-                              ${(item.price * item.quantity).toLocaleString()}
-                            </p>
                           </div>
-                        </Card>
-                      ))}
-                      <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg font-bold text-sm">
-                        <span>Total</span>
-                        <span>${groupedTotal.toLocaleString()}</span>
-                      </div>
+                          <p className="font-bold text-sm shrink-0">
+                            ${(item.price * item.quantity).toLocaleString()}
+                          </p>
+                        </div>
+                      </Card>
+                    ))}
+                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg font-bold text-sm">
+                      <span>Total</span>
+                      <span>${groupedTotal.toLocaleString()}</span>
                     </div>
-                    {/* Desktop view */}
-                    <div className="hidden lg:block">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Producto</TableHead>
-                            <TableHead>Precio Unitario</TableHead>
-                            <TableHead>Cantidad</TableHead>
-                            <TableHead>Total</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {groupedProducts.map((item) => (
-                            <TableRow key={item.name}>
-                              <TableCell className="font-medium">{item.name}</TableCell>
-                              <TableCell>${item.price.toLocaleString()}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">{item.quantity}</Badge>
-                              </TableCell>
-                              <TableCell className="font-bold">
-                                ${(item.price * item.quantity).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          <TableRow className="bg-muted/50 font-bold">
-                            <TableCell colSpan={3}>Total Agrupado</TableCell>
+                  </div>
+                  {/* Desktop view */}
+                  <div className="hidden lg:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Precio Unitario</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {groupedProducts.map((item) => (
+                          <TableRow key={item.name}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>${item.price.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{item.quantity}</Badge>
+                            </TableCell>
                             <TableCell className="font-bold">
-                              ${groupedTotal.toLocaleString()}
+                              ${(item.price * item.quantity).toLocaleString()}
                             </TableCell>
                           </TableRow>
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
+                        ))}
+                        <TableRow className="bg-muted/50 font-bold">
+                          <TableCell colSpan={3}>Total Agrupado</TableCell>
+                          <TableCell className="font-bold">
+                            ${groupedTotal.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader className="p-3 sm:p-6">
