@@ -629,24 +629,39 @@ function CustomerDetail({
       if (t.type !== "debt" || !t.description) return;
       const matches = t.description.match(/(\d+)x\s+([^,]+)/g);
       if (matches) {
+        // Calculate total qty in this transaction to derive unit price from amount
+        let totalQtyInTransaction = 0;
+        const parsedItems: { qty: number; name: string }[] = [];
         matches.forEach((match) => {
           const parts = match.match(/(\d+)x\s+(.+)/);
           if (parts) {
             const qty = parseInt(parts[1]);
-            const name = parts[2].trim();
-            const existing = productSummary.get(name);
-            const customerProduct = products.find((p) => p.product?.name === name);
-            const price = customerProduct ? Number(customerProduct.price) : 0;
-            
-            if (existing) {
-              productSummary.set(name, {
-                name,
-                price: existing.price || price,
-                quantity: existing.quantity + qty,
-              });
-            } else {
-              productSummary.set(name, { name, price, quantity: qty });
-            }
+            totalQtyInTransaction += qty;
+            parsedItems.push({ qty, name: parts[2].trim() });
+          }
+        });
+
+        parsedItems.forEach((item) => {
+          const nameKey = item.name.toUpperCase();
+          const existing = productSummary.get(nameKey);
+          // Try to get price from customer_products (case-insensitive)
+          const customerProduct = products.find(
+            (p) => p.product?.name?.toUpperCase() === nameKey
+          );
+          // Use customer product price, or derive from transaction amount
+          let unitPrice = customerProduct ? Number(customerProduct.price) : 0;
+          if (!unitPrice && parsedItems.length === 1 && item.qty > 0) {
+            unitPrice = Number(t.amount) / item.qty;
+          }
+
+          if (existing) {
+            productSummary.set(nameKey, {
+              name: item.name,
+              price: existing.price || unitPrice,
+              quantity: existing.quantity + item.qty,
+            });
+          } else {
+            productSummary.set(nameKey, { name: item.name, price: unitPrice, quantity: item.qty });
           }
         });
       }
