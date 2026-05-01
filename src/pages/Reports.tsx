@@ -649,29 +649,29 @@ export default function Reports() {
                   <div className="border-t pt-3 sm:pt-4">
                     <h3 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Desglose por Método de Pago</h3>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
-                        <span className="text-muted-foreground">Efectivo</span>
-                        <span className="font-semibold">${zReportData.cashTotal.toLocaleString('es-CL')}</span>
+                      <div className="flex justify-between items-center gap-2 p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm min-w-0">
+                        <span className="text-muted-foreground truncate">Efectivo</span>
+                        <span className="font-semibold truncate">${zReportData.cashTotal.toLocaleString('es-CL')}</span>
                       </div>
-                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
-                        <span className="text-muted-foreground">Débito</span>
-                        <span className="font-semibold">${zReportData.debitTotal.toLocaleString('es-CL')}</span>
+                      <div className="flex justify-between items-center gap-2 p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm min-w-0">
+                        <span className="text-muted-foreground truncate">Débito</span>
+                        <span className="font-semibold truncate">${zReportData.debitTotal.toLocaleString('es-CL')}</span>
                       </div>
-                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
-                        <span className="text-muted-foreground">Crédito</span>
-                        <span className="font-semibold">${zReportData.creditTotal.toLocaleString('es-CL')}</span>
+                      <div className="flex justify-between items-center gap-2 p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm min-w-0">
+                        <span className="text-muted-foreground truncate">Crédito</span>
+                        <span className="font-semibold truncate">${zReportData.creditTotal.toLocaleString('es-CL')}</span>
                       </div>
-                      <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
-                        <span className="text-muted-foreground">Transferencia</span>
-                        <span className="font-semibold">${zReportData.transferTotal.toLocaleString('es-CL')}</span>
+                      <div className="flex justify-between items-center gap-2 p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm min-w-0">
+                        <span className="text-muted-foreground truncate">Transferencia</span>
+                        <span className="font-semibold truncate">${zReportData.transferTotal.toLocaleString('es-CL')}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="border-t pt-3 sm:pt-4">
-                    <div className="flex justify-between p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm">
-                      <span className="text-muted-foreground">Total Vuelto Entregado</span>
-                      <span className="font-semibold text-destructive">${zReportData.totalChange.toLocaleString('es-CL')}</span>
+                    <div className="flex justify-between items-center gap-2 p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm min-w-0">
+                      <span className="text-muted-foreground truncate">Total Vuelto Entregado</span>
+                      <span className="font-semibold text-destructive truncate">${zReportData.totalChange.toLocaleString('es-CL')}</span>
                     </div>
                   </div>
 
