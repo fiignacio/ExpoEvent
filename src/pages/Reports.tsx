@@ -632,17 +632,17 @@ export default function Reports() {
                 <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
                   {/* Summary Stats */}
                   <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                      <p className="text-[10px] sm:text-sm text-muted-foreground">Total Sesiones</p>
-                      <p className="text-lg sm:text-2xl font-bold">{zReportData.sessionCount}</p>
+                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg min-w-0">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Total Sesiones</p>
+                      <p className="text-base sm:text-2xl font-bold truncate">{zReportData.sessionCount}</p>
                     </div>
-                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                      <p className="text-[10px] sm:text-sm text-muted-foreground">Transacciones</p>
-                      <p className="text-lg sm:text-2xl font-bold">{zReportData.totalTransactions}</p>
+                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg min-w-0">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Transacciones</p>
+                      <p className="text-base sm:text-2xl font-bold truncate">{zReportData.totalTransactions}</p>
                     </div>
-                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                      <p className="text-[10px] sm:text-sm text-muted-foreground">Ventas Totales</p>
-                      <p className="text-lg sm:text-2xl font-bold text-success">${zReportData.totalSales.toLocaleString('es-CL')}</p>
+                    <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg min-w-0">
+                      <p className="text-[10px] sm:text-sm text-muted-foreground truncate">Ventas Totales</p>
+                      <p className="text-sm sm:text-2xl font-bold text-success truncate">${zReportData.totalSales.toLocaleString('es-CL')}</p>
                     </div>
                   </div>
 
