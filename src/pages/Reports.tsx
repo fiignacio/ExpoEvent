@@ -19,7 +19,7 @@ import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
 import { useReportsComparison } from "@/hooks/useReportsComparison";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
-import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -84,23 +84,22 @@ export default function Reports() {
       case "30days":
         setActiveDays(30);
         break;
-      case "thisMonth":
+      case "thisMonth": {
         const monthStart = startOfMonth(today);
-        const daysSinceMonthStart = Math.ceil((today.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        setActiveDays(daysSinceMonthStart);
+        setActiveDays(differenceInCalendarDays(today, monthStart) + 1);
         break;
-      case "thisWeek":
+      }
+      case "thisWeek": {
         const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-        const daysSinceWeekStart = Math.ceil((today.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        setActiveDays(daysSinceWeekStart);
+        setActiveDays(differenceInCalendarDays(today, weekStart) + 1);
         break;
+      }
       case "specificMonth":
         if (selectedMonth) {
           const [yr, mo] = selectedMonth.split('-').map(Number);
           const mStart = new Date(yr, mo - 1, 1);
           const mEnd = endOfMonth(mStart);
-          const daysInMonth = Math.ceil((mEnd.getTime() - mStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          setActiveDays(daysInMonth);
+          setActiveDays(differenceInCalendarDays(mEnd, mStart) + 1);
           newEnd = mEnd;
         }
         break;
@@ -110,8 +109,7 @@ export default function Reports() {
           const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
           const start = new Date(startYear, startMonth - 1, startDay);
           const end = new Date(endYear, endMonth - 1, endDay);
-          const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          setActiveDays(daysDiff);
+          setActiveDays(differenceInCalendarDays(end, start) + 1);
           newEnd = end;
         }
         break;
