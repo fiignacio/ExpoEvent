@@ -362,8 +362,10 @@ export default function Reports() {
         const dayTotal = daySales.reduce((sum, s) => sum + s.total, 0);
         const dayCount = daySales.length;
         
+        const [yKey, mKey, dKey] = dateKey.split('-').map(Number);
+        const localDate = new Date(yKey, mKey - 1, dKey);
         dailyData.push({
-          Fecha: format(new Date(dateKey), 'PPP', { locale: es }),
+          Fecha: format(localDate, 'PPP', { locale: es }),
           'Número de Ventas': dayCount,
           'Total del Día': `$${dayTotal.toFixed(2)}`,
           'Efectivo': `$${daySales.filter(s => s.payment_method === 'efectivo').reduce((sum, s) => sum + s.total, 0).toFixed(2)}`,
