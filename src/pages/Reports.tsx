@@ -437,9 +437,18 @@ export default function Reports() {
       const wsCategories = XLSX.utils.json_to_sheet(categoriesData);
       XLSX.utils.book_append_sheet(wb, wsCategories, 'Ventas por Categoría');
 
-      // Generate file
+      // Generate file via Blob + anchor download (more reliable on PWAs/installed apps)
       const fileName = `reporte_${format(startDate, 'yyyy-MM-dd')}_${format(endDate, 'yyyy-MM-dd')}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       
       toast.success("Reporte exportado correctamente");
     } catch (error: any) {
