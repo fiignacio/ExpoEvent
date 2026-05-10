@@ -278,6 +278,11 @@ export default function Reports() {
       case "30days": return "Últimos 30 días";
       case "thisMonth": return "Este mes";
       case "thisWeek": return "Esta semana";
+      case "specificMonth": {
+        if (!selectedMonth) return "Mes específico";
+        const [yr, mo] = selectedMonth.split('-').map(Number);
+        return format(new Date(yr, mo - 1, 1), "MMMM yyyy", { locale: es });
+      }
       case "custom": return "Personalizado";
       default: return "Últimos 7 días";
     }
