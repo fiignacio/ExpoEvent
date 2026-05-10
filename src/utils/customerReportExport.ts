@@ -266,9 +266,18 @@ export async function exportCustomerSalesReport(
     const wsLinkedProducts = XLSX.utils.json_to_sheet(linkedProductsData);
     XLSX.utils.book_append_sheet(wb, wsLinkedProducts, 'Productos Vinculados');
 
-    // Generate file
+    // Generate file via Blob + anchor download (more reliable on PWAs/installed apps)
     const fileName = `reporte_${customer.type}_${customer.name.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}_${format(end, 'yyyy-MM-dd')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     
     toast.success("Reporte exportado correctamente");
   } catch (error: any) {
