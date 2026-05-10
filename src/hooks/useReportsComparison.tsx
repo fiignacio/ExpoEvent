@@ -140,7 +140,7 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
     const result: DailyComparisonData[] = [];
     
     for (let i = daysCount - 1; i >= 0; i--) {
-      const currentDate = subDays(new Date(), i);
+      const currentDate = subDays(endDateOverride ?? new Date(), i);
       const previousDate = subDays(currentDate, daysCount);
       
       const currentDateStr = format(currentDate, 'yyyy-MM-dd');
