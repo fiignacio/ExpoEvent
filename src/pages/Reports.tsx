@@ -134,9 +134,17 @@ export default function Reports() {
         case "thisWeek":
           startDate = startOfWeek(today, { weekStartsOn: 1 });
           break;
+        case "specificMonth":
+          if (selectedMonth) {
+            const [yr, mo] = selectedMonth.split('-').map(Number);
+            startDate = new Date(yr, mo - 1, 1);
+            endDate = endOfMonth(startDate);
+          } else {
+            startDate = subDays(today, activeDays - 1);
+          }
+          break;
         case "custom":
           if (customStartDate && customEndDate) {
-            // Parse dates in local timezone to avoid UTC offset issues
             const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
             const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
             startDate = new Date(startYear, startMonth - 1, startDay);
