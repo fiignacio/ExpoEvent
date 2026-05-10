@@ -118,44 +118,62 @@ export default function Reports() {
     fetchSupplierSales();
   }, [periodType, customStartDate, customEndDate, selectedMonth]);
 
+  // Compute the active report date range, normalized to user's local timezone.
+  // Always returns startDate at 00:00:00 and endDate at 23:59:59.999 of the local day.
+  const getDateRange = (): { startDate: Date; endDate: Date } => {
+    const today = new Date();
+    let startDate: Date;
+    let endDate: Date = today;
+
+    switch (periodType) {
+      case "thisMonth":
+        startDate = startOfMonth(today);
+        endDate = today;
+        break;
+      case "thisWeek":
+        startDate = startOfWeek(today, { weekStartsOn: 1 });
+        endDate = today;
+        break;
+      case "specificMonth":
+        if (selectedMonth) {
+          const [yr, mo] = selectedMonth.split('-').map(Number);
+          // Day 1 of month, local time
+          startDate = new Date(yr, mo - 1, 1);
+          // Day 0 of next month = last day of selected month, local time
+          endDate = new Date(yr, mo, 0);
+        } else {
+          startDate = subDays(today, activeDays - 1);
+          endDate = today;
+        }
+        break;
+      case "custom":
+        if (customStartDate && customEndDate) {
+          const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+          const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+          startDate = new Date(startYear, startMonth - 1, startDay);
+          endDate = new Date(endYear, endMonth - 1, endDay);
+        } else {
+          startDate = subDays(today, 7);
+          endDate = today;
+        }
+        break;
+      default:
+        startDate = subDays(today, activeDays - 1);
+        endDate = today;
+    }
+
+    // Normalize to inclusive local-day boundaries
+    startDate = new Date(startDate);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(endDate);
+    endDate.setHours(23, 59, 59, 999);
+    return { startDate, endDate };
+  };
+
   const fetchSupplierSales = async () => {
     setLoadingSupplierData(true);
     try {
-      const today = new Date();
-      let startDate: Date;
-      let endDate = today;
-      
-      switch (periodType) {
-        case "thisMonth":
-          startDate = startOfMonth(today);
-          break;
-        case "thisWeek":
-          startDate = startOfWeek(today, { weekStartsOn: 1 });
-          break;
-        case "specificMonth":
-          if (selectedMonth) {
-            const [yr, mo] = selectedMonth.split('-').map(Number);
-            startDate = new Date(yr, mo - 1, 1);
-            endDate = endOfMonth(startDate);
-          } else {
-            startDate = subDays(today, activeDays - 1);
-          }
-          break;
-        case "custom":
-          if (customStartDate && customEndDate) {
-            const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
-            const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
-            startDate = new Date(startYear, startMonth - 1, startDay);
-            startDate.setHours(0, 0, 0, 0);
-            endDate = new Date(endYear, endMonth - 1, endDay);
-            endDate.setHours(23, 59, 59, 999);
-          } else {
-            startDate = subDays(today, 7);
-          }
-          break;
-        default:
-          startDate = subDays(today, activeDays - 1);
-      }
+      const { startDate, endDate } = getDateRange();
 
       // Get suppliers with their linked products
       const { data: suppliers, error: suppliersError } = await supabase
