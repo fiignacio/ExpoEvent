@@ -50,7 +50,7 @@ const CATEGORY_COLORS = [
   "#84cc16"
 ];
 
-export function useReports(days: number = 7) {
+export function useReports(days: number = 7, endDateOverride?: Date) {
   const [salesData, setSalesData] = useState<DailySales[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [categoryData, setCategoryData] = useState<CategorySales[]>([]);
@@ -60,15 +60,18 @@ export function useReports(days: number = 7) {
   const [totalProductsSold, setTotalProductsSold] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const endKey = endDateOverride?.getTime() ?? 0;
+
   useEffect(() => {
     fetchReportsData();
-  }, [days]);
+  }, [days, endKey]);
 
   const fetchReportsData = async () => {
     try {
       setLoading(true);
-      const startDate = startOfDay(subDays(new Date(), days - 1));
-      const endDate = endOfDay(new Date());
+      const baseEnd = endDateOverride ?? new Date();
+      const startDate = startOfDay(subDays(baseEnd, days - 1));
+      const endDate = endOfDay(baseEnd);
 
       // Fetch sales data
       const { data: sales, error: salesError } = await supabase
@@ -105,7 +108,7 @@ export function useReports(days: number = 7) {
       // Create daily sales array
       const dailySalesArray: DailySales[] = [];
       for (let i = days - 1; i >= 0; i--) {
-        const date = subDays(new Date(), i);
+        const date = subDays(endDateOverride ?? new Date(), i);
         const dateKey = date.toLocaleDateString('es-MX');
         const dayName = date.toLocaleDateString('es-MX', { weekday: 'short' });
         const dayData = salesByDay.get(dateKey) || { total: 0, count: 0 };

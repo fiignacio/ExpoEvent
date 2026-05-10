@@ -30,7 +30,7 @@ interface DailyComparisonData {
   previousPeriod: number;
 }
 
-export function useReportsComparison(days: number = 7) {
+export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
   const [comparison, setComparison] = useState<PeriodComparison | null>(null);
   const [dailyComparison, setDailyComparison] = useState<DailyComparisonData[]>([]);
   const [paymentMethodsComparison, setPaymentMethodsComparison] = useState<{
@@ -39,17 +39,20 @@ export function useReportsComparison(days: number = 7) {
   }>({ current: {}, previous: {} });
   const [loading, setLoading] = useState(true);
 
+  const endKey = endDateOverride?.getTime() ?? 0;
+
   useEffect(() => {
     fetchComparisonData();
-  }, [days]);
+  }, [days, endKey]);
 
   const fetchComparisonData = async () => {
     try {
       setLoading(true);
+      const baseEnd = endDateOverride ?? new Date();
       
       // Current period
-      const currentEndDate = endOfDay(new Date());
-      const currentStartDate = startOfDay(subDays(new Date(), days - 1));
+      const currentEndDate = endOfDay(baseEnd);
+      const currentStartDate = startOfDay(subDays(baseEnd, days - 1));
       
       // Previous period (same duration, before current period)
       const previousEndDate = endOfDay(subDays(currentStartDate, 1));
@@ -137,7 +140,7 @@ export function useReportsComparison(days: number = 7) {
     const result: DailyComparisonData[] = [];
     
     for (let i = daysCount - 1; i >= 0; i--) {
-      const currentDate = subDays(new Date(), i);
+      const currentDate = subDays(endDateOverride ?? new Date(), i);
       const previousDate = subDays(currentDate, daysCount);
       
       const currentDateStr = format(currentDate, 'yyyy-MM-dd');

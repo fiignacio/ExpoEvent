@@ -24,14 +24,16 @@ import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "custom";
+type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "specificMonth" | "custom";
 
 export default function Reports() {
   const { sessions, loading: sessionsLoading, fetchSessions } = useCashSessions();
   const [periodType, setPeriodType] = useState<PeriodType>("7days");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [activeDays, setActiveDays] = useState(7);
+  const [endDateOverride, setEndDateOverride] = useState<Date | undefined>(undefined);
   
   const { 
     salesData, 
@@ -44,7 +46,7 @@ export default function Reports() {
     loading: reportsLoading,
     fetchZReport,
     refresh: refreshReports
-  } = useReports(activeDays);
+  } = useReports(activeDays, endDateOverride);
   
   const {
     comparison,
@@ -52,7 +54,7 @@ export default function Reports() {
     paymentMethodsComparison,
     loading: comparisonLoading,
     refresh: refreshComparison
-  } = useReportsComparison(activeDays);
+  } = useReportsComparison(activeDays, endDateOverride);
   
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -71,6 +73,7 @@ export default function Reports() {
   useEffect(() => {
     // Update days based on period type
     const today = new Date();
+    let newEnd: Date | undefined = undefined;
     switch (periodType) {
       case "7days":
         setActiveDays(7);
@@ -91,20 +94,31 @@ export default function Reports() {
         const daysSinceWeekStart = Math.ceil((today.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setActiveDays(daysSinceWeekStart);
         break;
+      case "specificMonth":
+        if (selectedMonth) {
+          const [yr, mo] = selectedMonth.split('-').map(Number);
+          const mStart = new Date(yr, mo - 1, 1);
+          const mEnd = endOfMonth(mStart);
+          const daysInMonth = Math.ceil((mEnd.getTime() - mStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          setActiveDays(daysInMonth);
+          newEnd = mEnd;
+        }
+        break;
       case "custom":
         if (customStartDate && customEndDate) {
-          // Parse dates in local timezone to avoid UTC offset issues
           const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
           const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
           const start = new Date(startYear, startMonth - 1, startDay);
           const end = new Date(endYear, endMonth - 1, endDay);
           const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
           setActiveDays(daysDiff);
+          newEnd = end;
         }
         break;
     }
+    setEndDateOverride(newEnd);
     fetchSupplierSales();
-  }, [periodType, customStartDate, customEndDate]);
+  }, [periodType, customStartDate, customEndDate, selectedMonth]);
 
   const fetchSupplierSales = async () => {
     setLoadingSupplierData(true);
@@ -120,9 +134,17 @@ export default function Reports() {
         case "thisWeek":
           startDate = startOfWeek(today, { weekStartsOn: 1 });
           break;
+        case "specificMonth":
+          if (selectedMonth) {
+            const [yr, mo] = selectedMonth.split('-').map(Number);
+            startDate = new Date(yr, mo - 1, 1);
+            endDate = endOfMonth(startDate);
+          } else {
+            startDate = subDays(today, activeDays - 1);
+          }
+          break;
         case "custom":
           if (customStartDate && customEndDate) {
-            // Parse dates in local timezone to avoid UTC offset issues
             const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
             const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
             startDate = new Date(startYear, startMonth - 1, startDay);
@@ -256,6 +278,11 @@ export default function Reports() {
       case "30days": return "Últimos 30 días";
       case "thisMonth": return "Este mes";
       case "thisWeek": return "Esta semana";
+      case "specificMonth": {
+        if (!selectedMonth) return "Mes específico";
+        const [yr, mo] = selectedMonth.split('-').map(Number);
+        return format(new Date(yr, mo - 1, 1), "MMMM yyyy", { locale: es });
+      }
       case "custom": return "Personalizado";
       default: return "Últimos 7 días";
     }
@@ -273,6 +300,15 @@ export default function Reports() {
           break;
         case "thisWeek":
           startDate = startOfWeek(today, { weekStartsOn: 1 });
+          break;
+        case "specificMonth":
+          if (selectedMonth) {
+            const [yr, mo] = selectedMonth.split('-').map(Number);
+            startDate = new Date(yr, mo - 1, 1);
+            endDate = endOfMonth(startDate);
+          } else {
+            startDate = subDays(today, activeDays - 1);
+          }
           break;
         case "custom":
           if (customStartDate && customEndDate) {
@@ -451,9 +487,19 @@ export default function Reports() {
               <SelectItem value="14days">Últimos 14 días</SelectItem>
               <SelectItem value="thisMonth">Este mes</SelectItem>
               <SelectItem value="30days">Últimos 30 días</SelectItem>
+              <SelectItem value="specificMonth">Mes específico</SelectItem>
               <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
+
+          {periodType === "specificMonth" && (
+            <Input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full sm:w-40 text-sm"
+            />
+          )}
           
           {periodType === "custom" && (
             <>
@@ -599,17 +645,15 @@ export default function Reports() {
       )}
 
       <Tabs defaultValue="zreport" className="space-y-3 sm:space-y-4">
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:w-auto sm:min-w-0">
-            <TabsTrigger value="zreport" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Cierre Z</TabsTrigger>
-            <TabsTrigger value="comparison" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Comparativa</TabsTrigger>
-            <TabsTrigger value="sales" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Ventas</TabsTrigger>
-            <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Productos</TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Categorías</TabsTrigger>
-            <TabsTrigger value="suppliers" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Proveedores</TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Sesiones</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid grid-cols-4 sm:flex sm:flex-wrap h-auto gap-1 p-1 w-full">
+          <TabsTrigger value="zreport" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Cierre Z</TabsTrigger>
+          <TabsTrigger value="comparison" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Comparativa</TabsTrigger>
+          <TabsTrigger value="sales" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Ventas</TabsTrigger>
+          <TabsTrigger value="products" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Productos</TabsTrigger>
+          <TabsTrigger value="categories" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Categorías</TabsTrigger>
+          <TabsTrigger value="suppliers" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Proveedores</TabsTrigger>
+          <TabsTrigger value="sessions" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Sesiones</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="zreport" className="space-y-4">
           {loadingZReport ? (
