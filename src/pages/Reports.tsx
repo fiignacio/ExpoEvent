@@ -19,7 +19,7 @@ import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
 import { useReportsComparison } from "@/hooks/useReportsComparison";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
-import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
