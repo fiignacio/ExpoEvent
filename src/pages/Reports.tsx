@@ -306,42 +306,8 @@ export default function Reports() {
 
   const exportToExcel = async () => {
     try {
-      const today = new Date();
-      let startDate: Date;
-      let endDate = today;
-      
-      switch (periodType) {
-        case "thisMonth":
-          startDate = startOfMonth(today);
-          break;
-        case "thisWeek":
-          startDate = startOfWeek(today, { weekStartsOn: 1 });
-          break;
-        case "specificMonth":
-          if (selectedMonth) {
-            const [yr, mo] = selectedMonth.split('-').map(Number);
-            startDate = new Date(yr, mo - 1, 1);
-            endDate = endOfMonth(startDate);
-          } else {
-            startDate = subDays(today, activeDays - 1);
-          }
-          break;
-        case "custom":
-          if (customStartDate && customEndDate) {
-            // Parse dates in local timezone to avoid UTC offset issues
-            const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
-            const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
-            startDate = new Date(startYear, startMonth - 1, startDay);
-            startDate.setHours(0, 0, 0, 0);
-            endDate = new Date(endYear, endMonth - 1, endDay);
-            endDate.setHours(23, 59, 59, 999);
-          } else {
-            startDate = subDays(today, 7);
-          }
-          break;
-        default:
-          startDate = subDays(today, activeDays - 1);
-      }
+      const { startDate, endDate } = getDateRange();
+
 
       // Fetch detailed sales
       const { data: detailedSales, error } = await supabase
