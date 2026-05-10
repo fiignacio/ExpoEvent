@@ -73,6 +73,7 @@ export default function Reports() {
   useEffect(() => {
     // Update days based on period type
     const today = new Date();
+    let newEnd: Date | undefined = undefined;
     switch (periodType) {
       case "7days":
         setActiveDays(7);
@@ -93,20 +94,31 @@ export default function Reports() {
         const daysSinceWeekStart = Math.ceil((today.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setActiveDays(daysSinceWeekStart);
         break;
+      case "specificMonth":
+        if (selectedMonth) {
+          const [yr, mo] = selectedMonth.split('-').map(Number);
+          const mStart = new Date(yr, mo - 1, 1);
+          const mEnd = endOfMonth(mStart);
+          const daysInMonth = Math.ceil((mEnd.getTime() - mStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          setActiveDays(daysInMonth);
+          newEnd = mEnd;
+        }
+        break;
       case "custom":
         if (customStartDate && customEndDate) {
-          // Parse dates in local timezone to avoid UTC offset issues
           const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
           const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
           const start = new Date(startYear, startMonth - 1, startDay);
           const end = new Date(endYear, endMonth - 1, endDay);
           const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
           setActiveDays(daysDiff);
+          newEnd = end;
         }
         break;
     }
+    setEndDateOverride(newEnd);
     fetchSupplierSales();
-  }, [periodType, customStartDate, customEndDate]);
+  }, [periodType, customStartDate, customEndDate, selectedMonth]);
 
   const fetchSupplierSales = async () => {
     setLoadingSupplierData(true);
