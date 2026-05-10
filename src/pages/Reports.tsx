@@ -24,14 +24,16 @@ import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "custom";
+type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "specificMonth" | "custom";
 
 export default function Reports() {
   const { sessions, loading: sessionsLoading, fetchSessions } = useCashSessions();
   const [periodType, setPeriodType] = useState<PeriodType>("7days");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [activeDays, setActiveDays] = useState(7);
+  const [endDateOverride, setEndDateOverride] = useState<Date | undefined>(undefined);
   
   const { 
     salesData, 
