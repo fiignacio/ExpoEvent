@@ -487,9 +487,19 @@ export default function Reports() {
               <SelectItem value="14days">Últimos 14 días</SelectItem>
               <SelectItem value="thisMonth">Este mes</SelectItem>
               <SelectItem value="30days">Últimos 30 días</SelectItem>
+              <SelectItem value="specificMonth">Mes específico</SelectItem>
               <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
+
+          {periodType === "specificMonth" && (
+            <Input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full sm:w-40 text-sm"
+            />
+          )}
           
           {periodType === "custom" && (
             <>
