@@ -46,7 +46,7 @@ export default function Reports() {
     loading: reportsLoading,
     fetchZReport,
     refresh: refreshReports
-  } = useReports(activeDays);
+  } = useReports(activeDays, endDateOverride);
   
   const {
     comparison,
@@ -54,7 +54,7 @@ export default function Reports() {
     paymentMethodsComparison,
     loading: comparisonLoading,
     refresh: refreshComparison
-  } = useReportsComparison(activeDays);
+  } = useReportsComparison(activeDays, endDateOverride);
   
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
