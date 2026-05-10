@@ -599,17 +599,15 @@ export default function Reports() {
       )}
 
       <Tabs defaultValue="zreport" className="space-y-3 sm:space-y-4">
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-max min-w-full sm:w-auto sm:min-w-0">
-            <TabsTrigger value="zreport" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Cierre Z</TabsTrigger>
-            <TabsTrigger value="comparison" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Comparativa</TabsTrigger>
-            <TabsTrigger value="sales" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Ventas</TabsTrigger>
-            <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Productos</TabsTrigger>
-            <TabsTrigger value="categories" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Categorías</TabsTrigger>
-            <TabsTrigger value="suppliers" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Proveedores</TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Sesiones</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid grid-cols-4 sm:flex sm:flex-wrap h-auto gap-1 p-1 w-full">
+          <TabsTrigger value="zreport" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Cierre Z</TabsTrigger>
+          <TabsTrigger value="comparison" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Comparativa</TabsTrigger>
+          <TabsTrigger value="sales" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Ventas</TabsTrigger>
+          <TabsTrigger value="products" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Productos</TabsTrigger>
+          <TabsTrigger value="categories" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Categorías</TabsTrigger>
+          <TabsTrigger value="suppliers" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Proveedores</TabsTrigger>
+          <TabsTrigger value="sessions" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Sesiones</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="zreport" className="space-y-4">
           {loadingZReport ? (
