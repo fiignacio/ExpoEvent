@@ -108,7 +108,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       // Create daily sales array
       const dailySalesArray: DailySales[] = [];
       for (let i = days - 1; i >= 0; i--) {
-        const date = subDays(new Date(), i);
+        const date = subDays(endDateOverride ?? new Date(), i);
         const dateKey = date.toLocaleDateString('es-MX');
         const dayName = date.toLocaleDateString('es-MX', { weekday: 'short' });
         const dayData = salesByDay.get(dateKey) || { total: 0, count: 0 };
