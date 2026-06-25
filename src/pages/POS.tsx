@@ -1653,7 +1653,7 @@ export default function POS() {
       />
 
       {/* Diálogo de elección de promoción */}
-      <Dialog open={!!promoDialogProduct} onOpenChange={(o) => !o && setPromoDialogProduct(null)}>
+      <Dialog open={!!promoDialogProduct} onOpenChange={(o) => { if (!o) { setPromoDialogProduct(null); setPromoPackCount(1); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{promoDialogProduct?.name}</DialogTitle>
@@ -1662,19 +1662,54 @@ export default function POS() {
             </DialogDescription>
           </DialogHeader>
           {promoDialogProduct?.promotion?.type === "bulk" && promoDialogProduct.promotion.quantity && promoDialogProduct.promotion.discountedPrice && (
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-4 pt-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">¿Cuántas promociones lleva el cliente?</Label>
+                <div className="flex items-center justify-center gap-3">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-11 w-11 rounded-full"
+                    onClick={() => setPromoPackCount(Math.max(1, promoPackCount - 1))}
+                  >
+                    <Minus className="w-5 h-5" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={promoPackCount}
+                    onChange={(e) => setPromoPackCount(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-20 text-center text-xl font-bold h-11"
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-11 w-11 rounded-full"
+                    onClick={() => setPromoPackCount(promoPackCount + 1)}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </div>
+                <p className="text-xs text-center text-muted-foreground">
+                  Total: {promoPackCount * promoDialogProduct.promotion.quantity} unidades · ${(promoPackCount * promoDialogProduct.promotion.discountedPrice).toLocaleString()}
+                </p>
+              </div>
               <Button
                 size="lg"
                 className="h-auto py-4 bg-gradient-primary"
                 onClick={() => {
                   const p = promoDialogProduct;
+                  const packs = promoPackCount;
                   setPromoDialogProduct(null);
-                  addToCartDirect(p, p.promotion!.quantity!);
+                  setPromoPackCount(1);
+                  addToCartDirect(p, p.promotion!.quantity! * packs);
                 }}
               >
                 <div className="flex flex-col items-center gap-1">
                   <span className="font-bold text-base">
-                    Agregar promoción ({promoDialogProduct.promotion.quantity} unid - ${promoDialogProduct.promotion.discountedPrice.toLocaleString()})
+                    Agregar {promoPackCount} {promoPackCount === 1 ? "promoción" : "promociones"} ({promoDialogProduct.promotion.quantity} x ${promoDialogProduct.promotion.discountedPrice.toLocaleString()})
                   </span>
                   <span className="text-xs opacity-90">Aplica descuento automáticamente</span>
                 </div>
@@ -1686,6 +1721,7 @@ export default function POS() {
                 onClick={() => {
                   const p = promoDialogProduct;
                   setPromoDialogProduct(null);
+                  setPromoPackCount(1);
                   addToCartDirect(p, 1);
                 }}
               >
