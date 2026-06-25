@@ -1650,6 +1650,56 @@ export default function POS() {
         onOpenChange={setShowWithdrawalDialog}
         sessionId={currentSession?.id || ""}
       />
+
+      {/* Diálogo de elección de promoción */}
+      <Dialog open={!!promoDialogProduct} onOpenChange={(o) => !o && setPromoDialogProduct(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{promoDialogProduct?.name}</DialogTitle>
+            <DialogDescription>
+              Este producto tiene una promoción disponible. ¿Cómo deseas agregarlo?
+            </DialogDescription>
+          </DialogHeader>
+          {promoDialogProduct?.promotion?.type === "bulk" && promoDialogProduct.promotion.quantity && promoDialogProduct.promotion.discountedPrice && (
+            <div className="flex flex-col gap-3 pt-2">
+              <Button
+                size="lg"
+                className="h-auto py-4 bg-gradient-primary"
+                onClick={() => {
+                  const p = promoDialogProduct;
+                  setPromoDialogProduct(null);
+                  addToCartDirect(p, p.promotion!.quantity!);
+                }}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-bold text-base">
+                    Agregar promoción ({promoDialogProduct.promotion.quantity} unid - ${promoDialogProduct.promotion.discountedPrice.toLocaleString()})
+                  </span>
+                  <span className="text-xs opacity-90">Aplica descuento automáticamente</span>
+                </div>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-auto py-4"
+                onClick={() => {
+                  const p = promoDialogProduct;
+                  setPromoDialogProduct(null);
+                  addToCartDirect(p, 1);
+                }}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-bold text-base">Agregar 1 unidad</span>
+                  <span className="text-xs opacity-70">Precio normal: ${promoDialogProduct.price.toLocaleString()}</span>
+                </div>
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
     </div>
   );
 }
