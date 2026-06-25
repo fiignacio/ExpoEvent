@@ -92,6 +92,7 @@ export default function POS() {
   const [mixedCashAmount, setMixedCashAmount] = useState("");
   const [mixedPayInUsd, setMixedPayInUsd] = useState(false);
   const [mixedUsdAmount, setMixedUsdAmount] = useState("");
+  const [promoDialogProduct, setPromoDialogProduct] = useState<Product | null>(null);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -375,9 +376,28 @@ export default function POS() {
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
-    
+
+    // Si el producto tiene promoción por cantidad y aún no está en el carrito,
+    // preguntar si quiere agregar la promo completa o solo 1 unidad.
+    if (
+      currentQuantity === 0 &&
+      product.promotion?.type === "bulk" &&
+      product.promotion.quantity &&
+      product.promotion.quantity > 1
+    ) {
+      setPromoDialogProduct(product);
+      return;
+    }
+
+    addToCartDirect(product, 1);
+  };
+
+  const addToCartDirect = (product: Product, quantityToAdd: number) => {
+    const existingItem = cart.find(item => item.id === product.id);
+    const currentQuantity = existingItem ? existingItem.quantity : 0;
+
     // Verificar stock disponible (solo si no se permite stock negativo)
-    if (!settings?.allow_negative_stock && currentQuantity + 1 > product.stock) {
+    if (!settings?.allow_negative_stock && currentQuantity + quantityToAdd > product.stock) {
       toast.error(`Stock insuficiente. Solo hay ${product.stock} unidades disponibles`);
       return;
     }
@@ -386,28 +406,27 @@ export default function POS() {
     const customerPrice = customerPrices.get(product.id);
     const finalPrice = customerPrice ?? product.price;
 
+    let newCart: CartItem[];
     if (existingItem) {
-      const newCart = cart.map(item =>
+      newCart = cart.map(item =>
         item.id === product.id
-          ? { ...item, quantity: item.quantity + 1, stock: product.stock }
+          ? { ...item, quantity: item.quantity + quantityToAdd, stock: product.stock }
           : item
       );
-      setCart(newCart);
-      checkPromotion(newCart, product.id);
     } else {
-      const newItem: CartItem = { 
+      const newItem: CartItem = {
         ...product,
         price: finalPrice,
-        quantity: 1,
+        quantity: quantityToAdd,
         originalPrice: product.price,
         appliedDiscount: 0,
-        isCustomerPrice: customerPrice !== undefined
+        isCustomerPrice: customerPrice !== undefined,
       };
-      const newCart = [...cart, newItem];
-      setCart(newCart);
-      checkPromotion(newCart, product.id);
+      newCart = [...cart, newItem];
     }
-    
+    setCart(newCart);
+    checkPromotion(newCart, product.id);
+
     // Mensaje diferente si aplica precio de cliente
     if (customerPrice !== undefined && customerPrice !== product.price) {
       toast.success(`${product.name} agregado con precio especial: $${finalPrice.toLocaleString()}`);
@@ -455,15 +474,20 @@ export default function POS() {
       return;
     }
 
-    const newCart = cart.map(cartItem => {
-      if (cartItem.id === id) {
-        return newQuantity > 0 ? { ...cartItem, quantity: newQuantity, stock: currentStock } : cartItem;
-      }
-      return cartItem;
-    }).filter(cartItem => cartItem.quantity > 0);
-    
+    const newCart = cart
+      .map(cartItem =>
+        cartItem.id === id
+          ? { ...cartItem, quantity: newQuantity, stock: currentStock }
+          : cartItem
+      )
+      .filter(cartItem => cartItem.quantity > 0);
+
     setCart(newCart);
-    checkPromotion(newCart, id);
+    if (newQuantity <= 0) {
+      toast.info("Producto eliminado");
+    } else {
+      checkPromotion(newCart, id);
+    }
   };
 
   const removeItem = (id: string) => {
@@ -1626,6 +1650,53 @@ export default function POS() {
         onOpenChange={setShowWithdrawalDialog}
         sessionId={currentSession?.id || ""}
       />
+
+      {/* Diálogo de elección de promoción */}
+      <Dialog open={!!promoDialogProduct} onOpenChange={(o) => !o && setPromoDialogProduct(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{promoDialogProduct?.name}</DialogTitle>
+            <DialogDescription>
+              Este producto tiene una promoción disponible. ¿Cómo deseas agregarlo?
+            </DialogDescription>
+          </DialogHeader>
+          {promoDialogProduct?.promotion?.type === "bulk" && promoDialogProduct.promotion.quantity && promoDialogProduct.promotion.discountedPrice && (
+            <div className="flex flex-col gap-3 pt-2">
+              <Button
+                size="lg"
+                className="h-auto py-4 bg-gradient-primary"
+                onClick={() => {
+                  const p = promoDialogProduct;
+                  setPromoDialogProduct(null);
+                  addToCartDirect(p, p.promotion!.quantity!);
+                }}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-bold text-base">
+                    Agregar promoción ({promoDialogProduct.promotion.quantity} unid - ${promoDialogProduct.promotion.discountedPrice.toLocaleString()})
+                  </span>
+                  <span className="text-xs opacity-90">Aplica descuento automáticamente</span>
+                </div>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-auto py-4"
+                onClick={() => {
+                  const p = promoDialogProduct;
+                  setPromoDialogProduct(null);
+                  addToCartDirect(p, 1);
+                }}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-bold text-base">Agregar 1 unidad</span>
+                  <span className="text-xs opacity-70">Precio normal: ${promoDialogProduct.price.toLocaleString()}</span>
+                </div>
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
