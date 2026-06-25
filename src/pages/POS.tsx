@@ -92,6 +92,7 @@ export default function POS() {
   const [mixedCashAmount, setMixedCashAmount] = useState("");
   const [mixedPayInUsd, setMixedPayInUsd] = useState(false);
   const [mixedUsdAmount, setMixedUsdAmount] = useState("");
+  const [promoDialogProduct, setPromoDialogProduct] = useState<Product | null>(null);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
