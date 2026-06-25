@@ -455,15 +455,20 @@ export default function POS() {
       return;
     }
 
-    const newCart = cart.map(cartItem => {
-      if (cartItem.id === id) {
-        return newQuantity > 0 ? { ...cartItem, quantity: newQuantity, stock: currentStock } : cartItem;
-      }
-      return cartItem;
-    }).filter(cartItem => cartItem.quantity > 0);
-    
+    const newCart = cart
+      .map(cartItem =>
+        cartItem.id === id
+          ? { ...cartItem, quantity: newQuantity, stock: currentStock }
+          : cartItem
+      )
+      .filter(cartItem => cartItem.quantity > 0);
+
     setCart(newCart);
-    checkPromotion(newCart, id);
+    if (newQuantity <= 0) {
+      toast.info("Producto eliminado");
+    } else {
+      checkPromotion(newCart, id);
+    }
   };
 
   const removeItem = (id: string) => {
