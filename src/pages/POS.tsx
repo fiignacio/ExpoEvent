@@ -376,9 +376,28 @@ export default function POS() {
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
-    
+
+    // Si el producto tiene promoción por cantidad y aún no está en el carrito,
+    // preguntar si quiere agregar la promo completa o solo 1 unidad.
+    if (
+      currentQuantity === 0 &&
+      product.promotion?.type === "bulk" &&
+      product.promotion.quantity &&
+      product.promotion.quantity > 1
+    ) {
+      setPromoDialogProduct(product);
+      return;
+    }
+
+    addToCartDirect(product, 1);
+  };
+
+  const addToCartDirect = (product: Product, quantityToAdd: number) => {
+    const existingItem = cart.find(item => item.id === product.id);
+    const currentQuantity = existingItem ? existingItem.quantity : 0;
+
     // Verificar stock disponible (solo si no se permite stock negativo)
-    if (!settings?.allow_negative_stock && currentQuantity + 1 > product.stock) {
+    if (!settings?.allow_negative_stock && currentQuantity + quantityToAdd > product.stock) {
       toast.error(`Stock insuficiente. Solo hay ${product.stock} unidades disponibles`);
       return;
     }
@@ -387,28 +406,27 @@ export default function POS() {
     const customerPrice = customerPrices.get(product.id);
     const finalPrice = customerPrice ?? product.price;
 
+    let newCart: CartItem[];
     if (existingItem) {
-      const newCart = cart.map(item =>
+      newCart = cart.map(item =>
         item.id === product.id
-          ? { ...item, quantity: item.quantity + 1, stock: product.stock }
+          ? { ...item, quantity: item.quantity + quantityToAdd, stock: product.stock }
           : item
       );
-      setCart(newCart);
-      checkPromotion(newCart, product.id);
     } else {
-      const newItem: CartItem = { 
+      const newItem: CartItem = {
         ...product,
         price: finalPrice,
-        quantity: 1,
+        quantity: quantityToAdd,
         originalPrice: product.price,
         appliedDiscount: 0,
-        isCustomerPrice: customerPrice !== undefined
+        isCustomerPrice: customerPrice !== undefined,
       };
-      const newCart = [...cart, newItem];
-      setCart(newCart);
-      checkPromotion(newCart, product.id);
+      newCart = [...cart, newItem];
     }
-    
+    setCart(newCart);
+    checkPromotion(newCart, product.id);
+
     // Mensaje diferente si aplica precio de cliente
     if (customerPrice !== undefined && customerPrice !== product.price) {
       toast.success(`${product.name} agregado con precio especial: $${finalPrice.toLocaleString()}`);
