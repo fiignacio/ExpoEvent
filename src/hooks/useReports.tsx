@@ -270,35 +270,42 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       }
     });
 
-    // Cargar sesiones reales de la caja para el reporte Z
+    // Cargar sesiones de caja reales (remotas de Supabase + locales)
     let sessions: any[] = [];
     try {
       const stored = localStorage.getItem("expoventas_cash_sessions");
-      if (stored) {
-        const parsed: any[] = JSON.parse(stored);
-        sessions = parsed.filter((s: any) => {
-          const openTs = new Date(s.opened_at).getTime();
-          return openTs >= startDate && openTs <= endDate;
-        }).map(s => ({
-          ...s,
-          initial_amount: Number(s.initial_amount || 0),
-          final_amount: s.final_amount != null ? Number(s.final_amount) : null,
-          profiles: { full_name: "Cajero Evento" }
-        }));
+      const local: any[] = stored ? JSON.parse(stored) : [];
+      const sessionMap = new Map<string, any>();
+      local.forEach(s => sessionMap.set(s.id, { ...s, profiles: { full_name: "Cajero Evento" } }));
+
+      const { data: remoteSessions, error: remoteErr } = await supabase
+        .from('cash_register_sessions')
+        .select('*')
+        .order('opened_at', { ascending: false });
+
+      if (!remoteErr && Array.isArray(remoteSessions)) {
+        remoteSessions.forEach((s: any) => {
+          const localItem = sessionMap.get(s.id);
+          sessionMap.set(s.id, {
+            id: s.id,
+            user_id: s.user_id || 'event-user-001',
+            opened_at: s.opened_at,
+            closed_at: s.closed_at,
+            initial_amount: Number(s.initial_amount || localItem?.initial_amount || 0),
+            final_amount: s.final_amount != null ? Number(s.final_amount) : (localItem?.final_amount != null ? Number(localItem.final_amount) : null),
+            status: s.status || localItem?.status || 'closed',
+            profiles: { full_name: "Cajero Evento" }
+          });
+        });
       }
+
+      const allMerged = Array.from(sessionMap.values());
+      sessions = allMerged.filter((s: any) => {
+        const openTs = new Date(s.opened_at).getTime();
+        return openTs >= startDate && openTs <= endDate;
+      });
     } catch (e) {
       console.error("Error reading cash sessions for Z Report:", e);
-    }
-
-    if (sessions.length === 0) {
-      sessions = [{
-        id: "session-001",
-        opened_at: new Date(startDate).toISOString(),
-        initial_amount: 0,
-        final_amount: null,
-        status: "closed",
-        profiles: { full_name: "Cajero Evento" }
-      }];
     }
 
     return {

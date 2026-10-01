@@ -142,6 +142,21 @@ export function useCashSessions() {
 
   useEffect(() => {
     fetchSessions();
+
+    const channel = supabase
+      .channel("cash_sessions_realtime_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cash_register_sessions" },
+        () => {
+          fetchSessions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return {
