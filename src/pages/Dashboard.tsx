@@ -7,6 +7,7 @@ import { ShoppingCart, Package, Settings, BarChart3, Users, TrendingUp, Trending
 import { useNavigate } from "react-router-dom";
 import { LowStockAlert } from "@/components/LowStockAlert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EventBackupDialog } from "@/components/EventBackupDialog";
 
 export default function Dashboard() {
   const { profile, role } = useAuth();
@@ -26,14 +27,18 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6 pb-24 md:pb-6 px-2 sm:px-4 md:px-6">
+
       {/* Header */}
-      <div className="pt-2">
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-          Bienvenido, {profile?.full_name || "Usuario"}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs sm:text-sm md:text-base">
-          Sistema de Punto de Venta
-        </p>
+      <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            ExpoVentas POS - Panel de Control
+          </h1>
+          <p className="text-muted-foreground mt-1 text-xs sm:text-sm md:text-base">
+            Sistema Simplificado de Punto de Venta y Gestión para Eventos
+          </p>
+        </div>
+        <EventBackupDialog />
       </div>
 
       {/* KPIs */}

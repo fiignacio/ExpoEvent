@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { EventBackupDialog } from "@/components/EventBackupDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -378,11 +379,13 @@ export default function Reports() {
       const wsDaily = XLSX.utils.json_to_sheet(dailyData);
       XLSX.utils.book_append_sheet(wb, wsDaily, 'Ventas por Día');
 
-      // Fetch products for mapping
-      const { data: products } = await supabase
-        .from('products')
-        .select('id, name, sku');
-      const productsMap = new Map(products?.map(p => [p.id, { name: p.name, sku: p.sku }]));
+      // Read products from local storage for mapping
+      let localProds: any[] = [];
+      try {
+        const storedProds = localStorage.getItem("expoventas_products");
+        if (storedProds) localProds = JSON.parse(storedProds);
+      } catch {}
+      const productsMap = new Map(localProds.map((p: any) => [p.id, { name: p.name, sku: p.sku }]));
 
       // Detailed transactions sheet - one row per product sold
       const transactionsData: any[] = [];
@@ -463,9 +466,12 @@ export default function Reports() {
     <div className="space-y-4 sm:space-y-6 pb-24 sm:pb-6">
       {/* Header Section - Responsive */}
       <div className="space-y-3 sm:space-y-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Reportes y Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-1">Análisis detallado de tu negocio</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Reportes y Analytics</h1>
+            <p className="text-sm text-muted-foreground mt-1">Análisis detallado de tu negocio y ventas del evento</p>
+          </div>
+          <EventBackupDialog />
         </div>
         
         {/* Filters - Stack on mobile, wrap on tablet */}

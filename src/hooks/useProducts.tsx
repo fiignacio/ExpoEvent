@@ -1,54 +1,99 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types/product";
+import { DEFAULT_EVENT_PRODUCTS } from "@/utils/defaultProducts";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const LOCAL_PRODUCTS_KEY = "expoventas_products";
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const mapProductData = useCallback((item: any): Product => ({
-    id: item.id,
-    name: item.name,
-    sku: item.sku,
-    category: item.category,
-    stock: item.stock,
-    price: Number(item.price),
-    cost: Number(item.cost),
-    ...(item.promotion_type && {
-      promotion: {
-        type: item.promotion_type as "bulk" | "percentage" | "fixed",
-        ...(item.promotion_quantity && { quantity: item.promotion_quantity }),
-        ...(item.promotion_discounted_price && { discountedPrice: Number(item.promotion_discounted_price) }),
-        ...(item.promotion_discount_percentage && { discountPercentage: Number(item.promotion_discount_percentage) }),
-        ...(item.promotion_discount_amount && { discountAmount: Number(item.promotion_discount_amount) }),
+  const loadLocalProducts = (): Product[] => {
+    try {
+      const stored = localStorage.getItem(LOCAL_PRODUCTS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
-    })
-  }), []);
+      localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(DEFAULT_EVENT_PRODUCTS));
+      return DEFAULT_EVENT_PRODUCTS;
+    } catch {
+      return DEFAULT_EVENT_PRODUCTS;
+    }
+  };
+
+  const saveLocalProducts = (updated: Product[]) => {
+    try {
+      localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Error saving local products:", e);
+    }
+  };
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      // 1. Intentar cargar desde Supabase (nube)
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("name");
+
+      if (!error && data && data.length > 0) {
+        const mappedProducts: Product[] = data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          sku: item.sku,
+          category: item.category,
+          stock: Number(item.stock),
+          price: Number(item.price),
+          cost: Number(item.cost),
+          ...(item.promotion_type && {
+            promotion: {
+              type: item.promotion_type as "bulk" | "percentage" | "fixed",
+              ...(item.promotion_quantity && { quantity: Number(item.promotion_quantity) }),
+              ...(item.promotion_discounted_price && {
+                discountedPrice: Number(item.promotion_discounted_price),
+              }),
+              ...(item.promotion_discount_percentage && {
+                discountPercentage: Number(item.promotion_discount_percentage),
+              }),
+              ...(item.promotion_discount_amount && {
+                discountAmount: Number(item.promotion_discount_amount),
+              }),
+            },
+          }),
+        }));
+
+        setProducts(mappedProducts);
+        saveLocalProducts(mappedProducts);
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.warn("No se pudo sincronizar con la nube, usando almacenamiento local:", e);
+    }
+
+    // Fallback a almacenamiento local
+    const local = loadLocalProducts();
+    setProducts(local);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchProducts();
 
-    // Suscripción realtime para actualizaciones de stock
+    // Suscribirse a cambios en tiempo real en Supabase para sincronizar PC ↔ Móvil
     const channel = supabase
-      .channel('products-realtime')
+      .channel("products_realtime_sync")
       .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products'
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newProduct = mapProductData(payload.new);
-            setProducts(prev => [...prev, newProduct].sort((a, b) => a.name.localeCompare(b.name)));
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedProduct = mapProductData(payload.new);
-            setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-          } else if (payload.eventType === 'DELETE') {
-            setProducts(prev => prev.filter(p => p.id !== payload.old.id));
-          }
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        () => {
+          fetchProducts();
         }
       )
       .subscribe();
@@ -56,65 +101,60 @@ export function useProducts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mapProductData]);
-
-  const fetchProducts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-
-      const mappedProducts: Product[] = (data || []).map(mapProductData);
-      setProducts(mappedProducts);
-    } catch (error: any) {
-      toast.error("Error al cargar productos");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchProducts]);
 
   const addProduct = async (product: Omit<Product, "id">) => {
+    const newId = crypto.randomUUID();
+    const newProd: Product = { ...product, id: newId };
+
+    // Actualizar estado local
+    setProducts(prev => {
+      const updated = [...prev, newProd].sort((a, b) => a.name.localeCompare(b.name));
+      saveLocalProducts(updated);
+      return updated;
+    });
+
+    // Intentar guardar en Supabase
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .insert([{
-          name: product.name,
+      await supabase.from("products").insert([
+        {
+          id: newId,
           sku: product.sku,
+          name: product.name,
           category: product.category,
           stock: product.stock,
           price: product.price,
           cost: product.cost,
-          promotion_type: product.promotion?.type,
-          promotion_quantity: product.promotion?.quantity,
-          promotion_discounted_price: product.promotion?.discountedPrice,
-          promotion_discount_percentage: product.promotion?.discountPercentage,
-          promotion_discount_amount: product.promotion?.discountAmount,
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Producto agregado");
-      await fetchProducts();
-      return data;
-    } catch (error: any) {
-      toast.error(error.message || "Error al agregar producto");
-      throw error;
+          promotion_type: product.promotion?.type || null,
+          promotion_quantity: product.promotion?.quantity || null,
+          promotion_discounted_price: product.promotion?.discountedPrice || null,
+          promotion_discount_percentage: product.promotion?.discountPercentage || null,
+          promotion_discount_amount: product.promotion?.discountAmount || null,
+        }
+      ]);
+    } catch (e) {
+      console.error("Error al guardar en Supabase:", e);
     }
+
+    toast.success("Producto agregado al catálogo del evento");
+    return newProd;
   };
 
   const updateProduct = async (id: string, product: Omit<Product, "id">) => {
+    const updatedProd: Product = { ...product, id };
+
+    setProducts(prev => {
+      const updated = prev.map(p => p.id === id ? updatedProd : p);
+      saveLocalProducts(updated);
+      return updated;
+    });
+
     try {
-      const { error } = await supabase
-        .from('products')
+      await supabase
+        .from("products")
         .update({
-          name: product.name,
           sku: product.sku,
+          name: product.name,
           category: product.category,
           stock: product.stock,
           price: product.price,
@@ -125,159 +165,133 @@ export function useProducts() {
           promotion_discount_percentage: product.promotion?.discountPercentage || null,
           promotion_discount_amount: product.promotion?.discountAmount || null,
         })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success("Producto actualizado");
-      await fetchProducts();
-    } catch (error: any) {
-      toast.error(error.message || "Error al actualizar producto");
-      throw error;
+        .eq("id", id);
+    } catch (e) {
+      console.error("Error al actualizar en Supabase:", e);
     }
+
+    toast.success("Producto actualizado");
   };
 
   const deleteProduct = async (id: string) => {
+    setProducts(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      saveLocalProducts(updated);
+      return updated;
+    });
+
     try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success("Producto eliminado");
-      await fetchProducts();
-    } catch (error: any) {
-      toast.error(error.message || "Error al eliminar producto");
-      throw error;
+      await supabase.from("products").delete().eq("id", id);
+    } catch (e) {
+      console.error("Error al eliminar en Supabase:", e);
     }
+
+    toast.success("Producto eliminado del inventario del evento");
   };
 
-  const bulkUpsert = async (products: Omit<Product, "id">[]) => {
+  const bulkDelete = async (ids: string[]) => {
+    if (ids.length === 0) return;
+
+    setProducts(prev => {
+      const idSet = new Set(ids);
+      const updated = prev.filter(p => !idSet.has(p.id));
+      saveLocalProducts(updated);
+      return updated;
+    });
+
     try {
-      const errors: string[] = [];
-      const productsToUpsert = [];
+      await supabase.from("products").delete().in("id", ids);
+    } catch (e) {
+      console.error("Error en bulkDelete Supabase:", e);
+    }
 
-      for (let i = 0; i < products.length; i++) {
-        const p = products[i];
-        try {
-          // Validar promotion_type - solo permitir valores válidos
-          const validPromotionTypes = ['bulk', 'percentage', 'fixed'];
-          const promotionType = p.promotion?.type && validPromotionTypes.includes(p.promotion.type) 
-            ? p.promotion.type 
-            : null;
+    toast.success(`${ids.length} productos eliminados del evento`);
+  };
 
-          const productData = {
-            sku: p.sku,
-            name: p.name,
-            category: p.category,
-            stock: Number(p.stock),
-            price: Number(p.price),
-            cost: Number(p.cost),
-            promotion_type: promotionType,
-            promotion_quantity: promotionType && p.promotion?.quantity ? Number(p.promotion.quantity) : null,
-            promotion_discounted_price: promotionType && p.promotion?.discountedPrice ? Number(p.promotion.discountedPrice) : null,
-            promotion_discount_percentage: promotionType && p.promotion?.discountPercentage ? Number(p.promotion.discountPercentage) : null,
-            promotion_discount_amount: promotionType && p.promotion?.discountAmount ? Number(p.promotion.discountAmount) : null,
-          };
+  const bulkUpsert = async (importedProducts: Omit<Product, "id">[]) => {
+    try {
+      setProducts(prev => {
+        const productMap = new Map<string, Product>();
+        prev.forEach(p => productMap.set(p.sku.toLowerCase(), p));
 
-          // Validar que los números sean válidos
-           if (isNaN(productData.stock)) {
-            errors.push(`Producto ${p.sku}: Stock inválido (valor: ${p.stock})`);
-            continue;
+        importedProducts.forEach(p => {
+          const existing = productMap.get(p.sku.toLowerCase());
+          if (existing) {
+            productMap.set(p.sku.toLowerCase(), { ...p, id: existing.id });
+          } else {
+            const newId = crypto.randomUUID();
+            productMap.set(p.sku.toLowerCase(), { ...p, id: newId });
           }
-          if (!Number.isInteger(productData.stock)) {
-            errors.push(`Producto ${p.sku}: Stock debe ser entero (valor: ${p.stock})`);
-            continue;
-          }
-          if (isNaN(productData.price)) {
-            errors.push(`Producto ${p.sku}: Precio inválido (valor: ${p.price})`);
-            continue;
-          }
-          if (isNaN(productData.cost)) {
-            errors.push(`Producto ${p.sku}: Costo inválido (valor: ${p.cost})`);
-            continue;
-          }
-          if (productData.promotion_quantity !== null && !Number.isInteger(productData.promotion_quantity)) {
-            errors.push(`Producto ${p.sku}: promo_cantidad debe ser entero (valor: ${p.promotion?.quantity})`);
-            continue;
-          }
+        });
 
-          productsToUpsert.push(productData);
-        } catch (err: any) {
-          errors.push(`Producto ${p.sku}: ${err.message}`);
-        }
-      }
+        const updated = Array.from(productMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        saveLocalProducts(updated);
+        return updated;
+      });
 
-      if (errors.length > 0) {
-        const errorMsg = `Errores en ${errors.length} producto(s):\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`;
-        toast.error(errorMsg, { duration: 10000 });
-        console.error("Errores detallados:", errors);
-      }
+      // Guardar también en Supabase
+      const toUpsert = importedProducts.map(p => ({
+        sku: p.sku,
+        name: p.name,
+        category: p.category,
+        stock: p.stock,
+        price: p.price,
+        cost: p.cost,
+        promotion_type: p.promotion?.type || null,
+        promotion_quantity: p.promotion?.quantity || null,
+        promotion_discounted_price: p.promotion?.discountedPrice || null,
+        promotion_discount_percentage: p.promotion?.discountPercentage || null,
+        promotion_discount_amount: p.promotion?.discountAmount || null,
+      }));
 
-      if (productsToUpsert.length === 0) {
-        throw new Error("No hay productos válidos para importar");
-      }
+      await supabase.from("products").upsert(toUpsert, { onConflict: "sku" });
 
-      const { error, data } = await supabase
-        .from('products')
-        .upsert(productsToUpsert, { onConflict: 'sku' });
-
-      if (error) {
-        const detailedError = `Error de base de datos: ${error.message}${error.details ? ` - ${error.details}` : ''}${error.hint ? ` (Sugerencia: ${error.hint})` : ''}`;
-        toast.error(detailedError, { duration: 10000 });
-        throw new Error(detailedError);
-      }
-
-      await fetchProducts();
+      toast.success(`${importedProducts.length} productos procesados con éxito`);
       return true;
     } catch (error: any) {
-      console.error("Error detallado:", error);
-      const errorMessage = error.message || "Error al importar productos";
-      if (!errorMessage.includes("Error de base de datos")) {
-        toast.error(errorMessage, { duration: 10000 });
-      }
+      toast.error("Error al importar productos: " + error.message);
       throw error;
     }
   };
 
   const bulkUpdate = async (updates: { id: string; data: Partial<Omit<Product, "id">> }[]) => {
+    setProducts(prev => {
+      const updateMap = new Map(updates.map(u => [u.id, u.data]));
+      const updated = prev.map(p => {
+        const change = updateMap.get(p.id);
+        if (!change) return p;
+        return { ...p, ...change };
+      });
+      saveLocalProducts(updated);
+      return updated;
+    });
+
     try {
-      const updatePromises = updates.map(({ id, data }) => 
+      const updatePromises = updates.map(({ id, data }) =>
         supabase
-          .from('products')
+          .from("products")
           .update({
             ...(data.name && { name: data.name }),
             ...(data.category && { category: data.category }),
             ...(data.stock !== undefined && { stock: Number(data.stock) }),
             ...(data.price !== undefined && { price: Number(data.price) }),
             ...(data.cost !== undefined && { cost: Number(data.cost) }),
-            ...(data.promotion !== undefined && {
-              promotion_type: data.promotion?.type || null,
-              promotion_quantity: data.promotion?.quantity ? Number(data.promotion.quantity) : null,
-              promotion_discounted_price: data.promotion?.discountedPrice ? Number(data.promotion.discountedPrice) : null,
-              promotion_discount_percentage: data.promotion?.discountPercentage ? Number(data.promotion.discountPercentage) : null,
-              promotion_discount_amount: data.promotion?.discountAmount ? Number(data.promotion.discountAmount) : null,
-            }),
           })
-          .eq('id', id)
+          .eq("id", id)
       );
-
-      const results = await Promise.all(updatePromises);
-      const errors = results.filter(r => r.error);
-      
-      if (errors.length > 0) {
-        throw new Error(`${errors.length} productos no se pudieron actualizar`);
-      }
-
-      toast.success(`${updates.length} productos actualizados`);
-      await fetchProducts();
-      return true;
-    } catch (error: any) {
-      toast.error(error.message || "Error al actualizar productos");
-      throw error;
+      await Promise.all(updatePromises);
+    } catch (e) {
+      console.error("Error en bulkUpdate Supabase:", e);
     }
+
+    toast.success(`${updates.length} productos actualizados`);
+    return true;
+  };
+
+  const resetToDefaultProducts = async () => {
+    localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(DEFAULT_EVENT_PRODUCTS));
+    setProducts(DEFAULT_EVENT_PRODUCTS);
+    toast.success("Catálogo restablecido a los productos por defecto del evento");
   };
 
   return {
@@ -286,8 +300,12 @@ export function useProducts() {
     addProduct,
     updateProduct,
     deleteProduct,
+    bulkDelete,
     bulkUpsert,
     bulkUpdate,
+    resetToDefaultProducts,
     refresh: fetchProducts,
   };
 }
+
+

@@ -81,70 +81,7 @@ export function useOfflineSync() {
   };
 
   const syncPendingSales = async () => {
-    if (!user || pendingSales.length === 0 || isSyncing) return;
-
-    setIsSyncing(true);
-    let successCount = 0;
-    const failedSales: OfflineSale[] = [];
-
-    for (const sale of pendingSales) {
-      try {
-        // Guardar en la base de datos
-        const { error: dbError } = await supabase
-          .from('offline_sales')
-          .insert([{
-            user_id: user.id,
-            session_id: sale.sessionId,
-            items: sale.items as any,
-            subtotal: sale.subtotal,
-            tax: sale.tax,
-            total: sale.total,
-            payment_method: sale.paymentMethod,
-            change_amount: sale.changeAmount || 0,
-            synced: true,
-            synced_at: new Date().toISOString()
-          }]);
-
-        if (dbError) throw dbError;
-
-        // Actualizar stock de productos
-        for (const item of sale.items) {
-          const { data: product, error: fetchError } = await supabase
-            .from('products')
-            .select('stock')
-            .eq('id', item.id)
-            .single();
-
-          if (fetchError) throw fetchError;
-
-          const newStock = (product.stock || 0) - item.quantity;
-          
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ stock: newStock })
-            .eq('id', item.id);
-
-          if (updateError) throw updateError;
-        }
-
-        successCount++;
-      } catch (error: any) {
-        console.error("Error syncing sale:", error);
-        failedSales.push(sale);
-      }
-    }
-
-    if (successCount > 0) {
-      toast.success(`${successCount} venta(s) sincronizada(s)`);
-    }
-
-    if (failedSales.length > 0) {
-      toast.error(`${failedSales.length} venta(s) fallaron al sincronizar`);
-      savePendingSales(failedSales);
-    } else {
-      savePendingSales([]);
-    }
-
+    // In isolated local event mode, sales are saved directly in local event storage.
     setIsSyncing(false);
   };
 

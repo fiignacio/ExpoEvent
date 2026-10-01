@@ -30,8 +30,12 @@ export default function Auth() {
               <ShoppingCart className="w-8 h-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Sistema POS</CardTitle>
-          <CardDescription>Ingresa tu código de acceso para continuar</CardDescription>
+          <CardTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            ExpoVentas POS
+          </CardTitle>
+          <CardDescription>
+            Sistema de Ventas para Eventos • Ingresa tu código de acceso para iniciar
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">

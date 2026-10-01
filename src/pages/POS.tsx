@@ -56,7 +56,7 @@ interface CartSession {
 const STORAGE_KEY = "pos_cart_sessions";
 
 export default function POS() {
-  const { products, loading } = useProducts();
+  const { products, loading, bulkUpdate } = useProducts();
   const { settings } = useSettings();
   const { currentSession, loading: sessionLoading, openSession, closeSession: closeCashSession } = useCashRegister();
   const { isOnline, isSyncing, pendingSales, addOfflineSale } = useOfflineSync();
@@ -523,57 +523,39 @@ export default function POS() {
     }
 
     try {
-      // Verificar stock actual de la base de datos
-      const productIds = cart.map(item => item.id);
-      const { data: currentProducts, error: fetchError } = await supabase
-        .from('products')
-        .select('id, name, stock')
-        .in('id', productIds);
-
-      if (fetchError) throw fetchError;
-
-      // Crear mapa de stock actual
-      const stockMap = new Map<string, number>();
-      currentProducts?.forEach(p => stockMap.set(p.id, p.stock));
-
-      // Reducir stock de productos
+      // 1. Verificar stock local
       for (const item of cart) {
-        const currentStock = stockMap.get(item.id) ?? 0;
-        const newStock = currentStock - item.quantity;
-        
-        if (newStock < 0 && !settings?.allow_negative_stock) {
+        const prod = products.find(p => p.id === item.id);
+        const currentStock = prod ? Number(prod.stock) : Number(item.stock);
+        if (currentStock < item.quantity && !settings?.allow_negative_stock) {
           toast.error(`Stock insuficiente para ${item.name}. Disponible: ${currentStock}`);
           return;
         }
-
-        const { error } = await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.id);
-
-        if (error) throw error;
       }
 
-      // Crear descripción detallada de la venta
-      const itemsDescription = cart
-        .map(item => `${item.quantity}x ${item.name} ($${item.price.toFixed(2)})`)
-        .join(", ");
+      // 2. Descontar stock del inventario local
+      const stockUpdates = cart.map(item => {
+        const prod = products.find(p => p.id === item.id);
+        const currentStock = prod ? Number(prod.stock) : Number(item.stock);
+        return {
+          id: item.id,
+          data: { stock: Math.max(0, currentStock - item.quantity) }
+        };
+      });
+      await bulkUpdate(stockUpdates);
 
-      // Registrar transacción de deuda
-      const { error: debtError } = await supabase
-        .from('customer_transactions')
-        .insert([{
-          customer_id: selectedCustomerId,
-          type: 'debt',
-          amount: total,
-          description: `Venta pendiente: ${itemsDescription}`,
-          status: 'pending',
-          created_by: user?.id
-        }]);
+      // 3. Registrar venta pendiente localmente
+      addOfflineSale({
+        sessionId: currentSession?.id || null,
+        items: cart,
+        subtotal: subtotalAfterDiscounts,
+        tax,
+        total,
+        paymentMethod: "pendiente",
+        customerId: selectedCustomerId
+      } as any);
 
-      if (debtError) throw debtError;
-
-      toast.success("Venta pendiente registrada correctamente");
+      toast.success("Venta pendiente registrada en el evento");
       
       // Limpiar carrito
       setCart([]);
@@ -603,9 +585,8 @@ export default function POS() {
         return;
       }
       changeAmount = received - total;
-      cashAmount = total; // Todo es efectivo
+      cashAmount = total;
       
-      // Track USD payment if used
       if (payInUsd && usdAmount) {
         paidInUsd = true;
         usdAmountPaid = parseFloat(usdAmount);
@@ -619,14 +600,12 @@ export default function POS() {
       }
       cashAmount = cashPaid;
       
-      // Track USD payment for mixed
       if (mixedPayInUsd && mixedUsdAmount) {
         paidInUsd = true;
         usdAmountPaid = parseFloat(mixedUsdAmount);
         exchangeRateUsed = currentRate;
       }
       
-      // Check if cash received is more than cash amount (needs change)
       const received = parseFloat(receivedAmount);
       if (received > 0 && received > cashPaid) {
         changeAmount = received - cashPaid;
@@ -635,173 +614,46 @@ export default function POS() {
 
     setIsProcessing(true);
     try {
-      if (!isOnline) {
-        // Modo offline: guardar venta para sincronización posterior
-        addOfflineSale({
-          sessionId: currentSession?.id || null,
-          items: cart,
-          subtotal: subtotalAfterDiscounts,
-          tax,
-          total,
-          paymentMethod,
-          changeAmount
-        });
+      // 1. Guardar la venta en almacenamiento local (offline_sales)
+      addOfflineSale({
+        sessionId: currentSession?.id || null,
+        items: cart,
+        subtotal: subtotalAfterDiscounts,
+        tax,
+        total,
+        paymentMethod,
+        changeAmount,
+        cash_amount: cashAmount,
+        paid_in_usd: paidInUsd,
+        usd_amount: usdAmountPaid,
+        exchange_rate_used: exchangeRateUsed,
+      } as any);
 
-        // Actualizar stock localmente
-        cart.forEach(item => {
-          const productIndex = products.findIndex(p => p.id === item.id);
-          if (productIndex !== -1) {
-            products[productIndex].stock -= item.quantity;
-          }
-        });
+      // 2. Descontar stock del inventario local (expoventas_products)
+      const stockUpdates = cart.map(item => {
+        const prod = products.find(p => p.id === item.id);
+        const currentStock = prod ? Number(prod.stock) : Number(item.stock);
+        const newStock = Math.max(0, currentStock - item.quantity);
+        return {
+          id: item.id,
+          data: { stock: newStock }
+        };
+      });
 
-        if (paymentMethod === "efectivo") {
-          toast.success(`Venta guardada (offline). Cambio: $${changeAmount.toFixed(2)}`);
-        } else {
-          toast.success("Venta guardada para sincronización");
-        }
+      await bulkUpdate(stockUpdates);
+
+      if (paymentMethod === "efectivo") {
+        toast.success(`Venta procesada. Cambio: $${Math.round(changeAmount).toLocaleString('es-CL')}`);
+      } else if (paymentMethod === "mixto") {
+        const cardAmount = total - cashAmount;
+        toast.success(`Venta procesada: $${cashAmount.toLocaleString('es-CL')} efectivo + $${cardAmount.toLocaleString('es-CL')} tarjeta`);
       } else {
-        // Modo online: verificar stock actual de la base de datos
-        const productIds = cart.map(item => item.id);
-        const { data: currentProducts, error: fetchError } = await supabase
-          .from('products')
-          .select('id, name, stock')
-          .in('id', productIds);
-
-        if (fetchError) throw fetchError;
-
-        // Crear mapa de stock actual
-        const stockMap = new Map<string, number>();
-        currentProducts?.forEach(p => stockMap.set(p.id, p.stock));
-
-        // Procesar cada item del carrito
-        for (const item of cart) {
-          const currentStock = stockMap.get(item.id) ?? 0;
-          const newStock = currentStock - item.quantity;
-          
-          if (newStock < 0 && !settings?.allow_negative_stock) {
-            toast.error(`Stock insuficiente para ${item.name}. Disponible: ${currentStock}`);
-            setIsProcessing(false);
-            return;
-          }
-
-          const { error } = await supabase
-            .from('products')
-            .update({ stock: newStock })
-            .eq('id', item.id);
-
-          if (error) throw error;
-        }
-
-        // Guardar venta en la base de datos
-        const { error: saleError } = await supabase
-          .from('offline_sales')
-          .insert([{
-            user_id: user?.id || '',
-            session_id: currentSession?.id || null,
-            items: cart as any,
-            subtotal: subtotalAfterDiscounts,
-            tax,
-            total,
-            payment_method: paymentMethod,
-            change_amount: changeAmount,
-            cash_amount: cashAmount,
-            paid_in_usd: paidInUsd,
-            usd_amount: usdAmountPaid,
-            exchange_rate_used: exchangeRateUsed,
-            synced: true,
-            synced_at: new Date().toISOString()
-          }]);
-
-        if (saleError) throw saleError;
-
-        // Generar transacciones automáticas para proveedores
-        const supplierProductIds = cart.map(item => item.id);
-        console.log("🔍 Buscando productos vinculados a proveedores. IDs:", supplierProductIds);
-        
-        // Obtener productos vinculados a proveedores
-        const { data: customerProducts, error: cpError } = await supabase
-          .from('customer_products')
-          .select(`
-            *,
-            customer:customers(id, name, type)
-          `)
-          .in('product_id', supplierProductIds);
-
-        if (cpError) {
-          console.error("❌ Error fetching customer products:", cpError);
-          toast.error("No se pudieron registrar las comisiones de proveedores");
-        }
-        
-        console.log("📦 Productos vinculados encontrados:", customerProducts);
-
-        // Crear transacciones de deuda para cada proveedor
-        if (customerProducts && customerProducts.length > 0) {
-          const supplierDebts = new Map<string, { amount: number; description: string }>();
-
-          cart.forEach(item => {
-            const linkedProduct = customerProducts.find(
-              (cp: any) => cp.product_id === item.id && cp.customer.type === 'proveedor'
-            );
-
-            if (linkedProduct) {
-              const supplierId = linkedProduct.customer_id;
-              const supplierPrice = Number(linkedProduct.price);
-              const itemTotal = supplierPrice * item.quantity;
-
-              if (supplierDebts.has(supplierId)) {
-                const current = supplierDebts.get(supplierId)!;
-                current.amount += itemTotal;
-                current.description += `, ${item.quantity}x ${item.name}`;
-              } else {
-                supplierDebts.set(supplierId, {
-                  amount: itemTotal,
-                  description: `Venta: ${item.quantity}x ${item.name}`
-                });
-              }
-            }
-          });
-
-          // Insertar las transacciones de deuda
-          const debtTransactions = Array.from(supplierDebts.entries()).map(([customerId, data]) => ({
-            customer_id: customerId,
-            type: 'debt',
-            amount: data.amount,
-            description: data.description,
-            status: 'pending',
-            created_by: user?.id
-          }));
-
-          if (debtTransactions.length > 0) {
-            console.log("💰 Creando transacciones de proveedor:", debtTransactions);
-            
-            const { error: debtError } = await supabase
-              .from('customer_transactions')
-              .insert(debtTransactions);
-
-            if (debtError) {
-              console.error("❌ Error creating supplier debts:", debtError);
-              toast.error("Error al registrar comisiones de proveedores");
-            } else {
-              console.log("✅ Transacciones de proveedor creadas exitosamente");
-              toast.success(`Comisiones registradas para ${debtTransactions.length} proveedor(es)`);
-            }
-          }
-        }
-
-        if (paymentMethod === "efectivo") {
-          toast.success(`Venta procesada. Cambio: $${changeAmount.toFixed(2)}`);
-        } else if (paymentMethod === "mixto") {
-          const cardAmount = total - cashAmount;
-          toast.success(`Venta procesada: $${cashAmount.toLocaleString('es-CL')} efectivo + $${cardAmount.toLocaleString('es-CL')} tarjeta`);
-        } else {
-          const methodNames: Record<string, string> = {
-            debito: "Tarjeta de Débito",
-            credito: "Tarjeta de Crédito",
-            transferencia: "Transferencia"
-          };
-          toast.success(`Venta procesada con ${methodNames[paymentMethod]}: $${total.toFixed(2)}`);
-        }
+        const methodNames: Record<string, string> = {
+          debito: "Tarjeta de Débito",
+          credito: "Tarjeta de Crédito",
+          transferencia: "Transferencia"
+        };
+        toast.success(`Venta procesada con ${methodNames[paymentMethod] || paymentMethod}: $${total.toLocaleString('es-CL')}`);
       }
 
       // Limpiar carrito actual

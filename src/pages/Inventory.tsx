@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Search, Edit, Trash2, Package, Tag, Save, RefreshCw, X } from "lucide-react";
+import { Search, Edit, Trash2, Package, Tag, Save, RefreshCw, X, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Table,
@@ -35,13 +36,36 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [editMode, setEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingChanges, setPendingChanges] = useState<Map<string, Partial<Omit<Product, "id">>>>(new Map());
-  const { products, loading, addProduct, updateProduct, deleteProduct, bulkUpsert, bulkUpdate, refresh } = useProducts();
+  const { products, loading, addProduct, updateProduct, deleteProduct, bulkDelete, bulkUpsert, bulkUpdate, refresh } = useProducts();
 
   const filteredInventory = products.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const isAllSelected = filteredInventory.length > 0 && filteredInventory.every(item => selectedIds.has(item.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredInventory.map(item => item.id)));
+    }
+  };
+
+  const toggleSelectProduct = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const handleAddProduct = async (product: Omit<Product, "id">) => {
     await addProduct(product);
@@ -54,6 +78,18 @@ export default function Inventory() {
 
   const handleDelete = async (id: string) => {
     await deleteProduct(id);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const idsArray = Array.from(selectedIds);
+    if (idsArray.length === 0) return;
+    await bulkDelete(idsArray);
+    setSelectedIds(new Set());
   };
 
   const handleBulkImport = async (importedProducts: Omit<Product, "id">[]) => {
@@ -119,14 +155,22 @@ export default function Inventory() {
   // Mobile Product Card Component
   const ProductCard = ({ item }: { item: Product }) => {
     const margin = ((item.price - item.cost) / item.price * 100).toFixed(1);
+    const isSelected = selectedIds.has(item.id);
     
     return (
-      <Card className={`${pendingChanges.has(item.id) ? "border-primary" : ""}`}>
+      <Card className={`${isSelected ? "border-primary bg-primary/5" : pendingChanges.has(item.id) ? "border-primary" : ""}`}>
         <CardContent className="p-3">
           <div className="flex justify-between items-start gap-2 mb-2">
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-sm truncate">{item.name}</h3>
-              <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <Checkbox 
+                checked={isSelected}
+                onCheckedChange={() => toggleSelectProduct(item.id)}
+                className="mt-1"
+              />
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-sm truncate">{item.name}</h3>
+                <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
+              </div>
             </div>
             <div className="flex gap-1 flex-shrink-0">
               <Button 
@@ -207,15 +251,23 @@ export default function Inventory() {
     <div className="space-y-3 sm:space-y-4 md:space-y-6 p-2 sm:p-4 md:p-6 pb-24 md:pb-6">
       {/* Header */}
       <div className="flex flex-col gap-2 sm:gap-3">
-        <div>
-          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold">Inventario</h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">
-            Gestiona tu catálogo de productos
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold">Inventario</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm">
+              Gestiona tu catálogo de productos
+            </p>
+          </div>
+
+          {selectedIds.size > 0 && (
+            <Badge variant="default" className="text-xs bg-primary px-2.5 py-1">
+              {selectedIds.size} seleccionado(s)
+            </Badge>
+          )}
         </div>
         
         {/* Action Buttons - Compact for mobile */}
-        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
           <Button 
             variant="ghost"
             size="sm"
@@ -226,6 +278,41 @@ export default function Inventory() {
             <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline ml-1.5">Actualizar</span>
           </Button>
+
+          {/* Botón de Eliminación Masiva */}
+          {selectedIds.size > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 px-2 sm:px-3 animate-fade-in"
+                >
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="ml-1 sm:ml-1.5 text-xs sm:text-sm font-semibold">
+                    Eliminar ({selectedIds.size})
+                  </span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar {selectedIds.size} productos?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se eliminarán permanentemente los {selectedIds.size} productos seleccionados del inventario. Esta acción no se puede deshacer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Eliminar {selectedIds.size} Productos
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           
           {editMode && (
             <>
@@ -348,13 +435,30 @@ export default function Inventory() {
 
       {/* Desktop: Table View */}
       <Card className="hidden lg:block">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Lista de Productos ({filteredInventory.length})</CardTitle>
+          {filteredInventory.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSelectAll}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              {isAllSelected ? "Desmarcar Todos" : "Seleccionar Todos"}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox 
+                    checked={isAllSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Seleccionar todos"
+                  />
+                </TableHead>
                 <TableHead className="min-w-[150px]">Producto</TableHead>
                 <TableHead className="min-w-[90px]">SKU</TableHead>
                 <TableHead className="min-w-[100px]">Categoría</TableHead>
@@ -369,8 +473,16 @@ export default function Inventory() {
             <TableBody>
               {filteredInventory.map((item) => {
                 const margin = ((item.price - item.cost) / item.price * 100).toFixed(1);
+                const isSelected = selectedIds.has(item.id);
                 return (
-                  <TableRow key={item.id} className={pendingChanges.has(item.id) ? "bg-accent/50" : ""}>
+                  <TableRow key={item.id} className={`${isSelected ? "bg-primary/10" : pendingChanges.has(item.id) ? "bg-accent/50" : ""}`}>
+                    <TableCell>
+                      <Checkbox 
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectProduct(item.id)}
+                        aria-label={`Seleccionar ${item.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       {editMode ? (
                         <EditableCell 
@@ -488,4 +600,4 @@ export default function Inventory() {
       </Card>
     </div>
   );
-}
+}

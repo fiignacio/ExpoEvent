@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, endOfDay, subDays } from "date-fns";
+import { Product } from "@/types/product";
+import { DEFAULT_EVENT_PRODUCTS } from "@/utils/defaultProducts";
 
 interface DashboardStats {
   salesToday: number;
@@ -31,6 +32,9 @@ interface DashboardStats {
   growthPercentage: number;
 }
 
+const LOCAL_PRODUCTS_KEY = "expoventas_products";
+const OFFLINE_SALES_KEY = "offline_sales";
+
 export function useDashboardStats(lowStockThreshold: number = 10) {
   const [stats, setStats] = useState<DashboardStats>({
     salesToday: 0,
@@ -51,96 +55,94 @@ export function useDashboardStats(lowStockThreshold: number = 10) {
   const fetchStats = useCallback(async () => {
     try {
       const now = new Date();
-      const todayStart = startOfDay(now);
-      const todayEnd = endOfDay(now);
-      const yesterdayStart = startOfDay(subDays(now, 1));
-      const yesterdayEnd = endOfDay(subDays(now, 1));
-      const weekStart = startOfDay(subDays(now, 7));
-      const monthStart = startOfDay(subDays(now, 30));
+      const todayStart = startOfDay(now).getTime();
+      const todayEnd = endOfDay(now).getTime();
+      const yesterdayStart = startOfDay(subDays(now, 1)).getTime();
+      const yesterdayEnd = endOfDay(subDays(now, 1)).getTime();
+      const weekStart = startOfDay(subDays(now, 7)).getTime();
+      const monthStart = startOfDay(subDays(now, 30)).getTime();
 
-      // Fetch all data in parallel
-      const [
-        todaySalesRes,
-        yesterdaySalesRes,
-        weekSalesRes,
-        monthSalesRes,
-        lowStockRes,
-        activeSessionRes,
-        pendingTransactionsRes
-      ] = await Promise.all([
-        // Today's sales
-        supabase
-          .from('offline_sales')
-          .select('total, items')
-          .gte('created_at', todayStart.toISOString())
-          .lte('created_at', todayEnd.toISOString()),
-        // Yesterday's sales
-        supabase
-          .from('offline_sales')
-          .select('total')
-          .gte('created_at', yesterdayStart.toISOString())
-          .lte('created_at', yesterdayEnd.toISOString()),
-        // Week sales
-        supabase
-          .from('offline_sales')
-          .select('total')
-          .gte('created_at', weekStart.toISOString())
-          .lte('created_at', todayEnd.toISOString()),
-        // Month sales
-        supabase
-          .from('offline_sales')
-          .select('total')
-          .gte('created_at', monthStart.toISOString())
-          .lte('created_at', todayEnd.toISOString()),
-        // Low stock products
-        supabase
-          .from('products')
-          .select('id, name, stock, sku')
-          .lte('stock', lowStockThreshold)
-          .order('stock', { ascending: true })
-          .limit(10),
-        // Active cash session
-        supabase
-          .from('cash_register_sessions')
-          .select('id, initial_amount, opened_at, user_id')
-          .eq('status', 'open')
-          .limit(1)
-          .maybeSingle(),
-        // Pending customer transactions
-        supabase
-          .from('customer_transactions')
-          .select('amount')
-          .eq('status', 'pending')
-          .eq('type', 'debt')
-      ]);
+      // 1. Cargar productos desde almacenamiento local (expoventas_products)
+      let products: Product[] = [];
+      try {
+        const storedProducts = localStorage.getItem(LOCAL_PRODUCTS_KEY);
+        if (storedProducts) {
+          products = JSON.parse(storedProducts);
+        } else {
+          products = DEFAULT_EVENT_PRODUCTS;
+        }
+      } catch {
+        products = DEFAULT_EVENT_PRODUCTS;
+      }
 
-      // Calculate today's stats
-      const todaySales = todaySalesRes.data || [];
-      const salesToday = todaySales.reduce((sum, s) => sum + Number(s.total), 0);
+      // Productos con stock bajo (exclusivamente del inventario actual)
+      const lowStockProducts = products
+        .filter(p => Number(p.stock) <= lowStockThreshold)
+        .sort((a, b) => Number(a.stock) - Number(b.stock))
+        .slice(0, 10)
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          stock: p.stock,
+          sku: p.sku
+        }));
+
+      // 2. Cargar ventas desde almacenamiento local (offline_sales)
+      let sales: any[] = [];
+      try {
+        const storedSales = localStorage.getItem(OFFLINE_SALES_KEY);
+        if (storedSales) {
+          sales = JSON.parse(storedSales);
+        }
+      } catch {
+        sales = [];
+      }
+
+      // Filtrar ventas por rango
+      const todaySales = sales.filter(s => {
+        const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+        return ts >= todayStart && ts <= todayEnd;
+      });
+
+      const yesterdaySales = sales.filter(s => {
+        const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+        return ts >= yesterdayStart && ts <= yesterdayEnd;
+      });
+
+      const weekSales = sales.filter(s => {
+        const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+        return ts >= weekStart && ts <= todayEnd;
+      });
+
+      const monthSales = sales.filter(s => {
+        const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+        return ts >= monthStart && ts <= todayEnd;
+      });
+
+      const salesToday = todaySales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+      const salesYesterday = yesterdaySales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+      const salesWeek = weekSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+      const salesMonth = monthSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+
       const transactionsToday = todaySales.length;
       const averageTicketToday = transactionsToday > 0 ? salesToday / transactionsToday : 0;
 
-      // Yesterday's sales
-      const salesYesterday = (yesterdaySalesRes.data || []).reduce((sum, s) => sum + Number(s.total), 0);
-
-      // Week and month sales
-      const salesWeek = (weekSalesRes.data || []).reduce((sum, s) => sum + Number(s.total), 0);
-      const salesMonth = (monthSalesRes.data || []).reduce((sum, s) => sum + Number(s.total), 0);
-
-      // Growth percentage (today vs yesterday)
       const growthPercentage = salesYesterday > 0 
         ? ((salesToday - salesYesterday) / salesYesterday) * 100 
         : salesToday > 0 ? 100 : 0;
 
-      // Top products today
+      // Productos más vendidos hoy
       const productMap = new Map<string, { quantity: number; revenue: number }>();
       todaySales.forEach((sale) => {
         if (sale.items && Array.isArray(sale.items)) {
           (sale.items as any[]).forEach((item) => {
-            const existing = productMap.get(item.name) || { quantity: 0, revenue: 0 };
-            existing.quantity += item.quantity || 0;
-            existing.revenue += (item.quantity || 0) * (item.price || 0);
-            productMap.set(item.name, existing);
+            const itemName = item.name || "Producto";
+            const existing = productMap.get(itemName) || { quantity: 0, revenue: 0 };
+            const qty = Number(item.quantity || 0);
+            const price = Number(item.price || 0);
+            existing.quantity += qty;
+            existing.revenue += qty * price;
+            productMap.set(itemName, existing);
           });
         }
       });
@@ -150,27 +152,6 @@ export function useDashboardStats(lowStockThreshold: number = 10) {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
 
-      // Pending transactions
-      const pendingTx = pendingTransactionsRes.data || [];
-      const pendingTransactionsAmount = pendingTx.reduce((sum, t) => sum + Number(t.amount), 0);
-
-      // Active session with user name
-      let activeCashSession = null;
-      if (activeSessionRes.data) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('user_id', activeSessionRes.data.user_id)
-          .maybeSingle();
-
-        activeCashSession = {
-          id: activeSessionRes.data.id,
-          initialAmount: Number(activeSessionRes.data.initial_amount),
-          openedAt: activeSessionRes.data.opened_at,
-          userName: profile?.full_name
-        };
-      }
-
       setStats({
         salesToday,
         salesYesterday,
@@ -178,15 +159,20 @@ export function useDashboardStats(lowStockThreshold: number = 10) {
         salesMonth,
         transactionsToday,
         averageTicketToday,
-        lowStockProducts: lowStockRes.data || [],
+        lowStockProducts,
         topProductsToday,
-        activeCashSession,
-        pendingTransactions: pendingTx.length,
-        pendingTransactionsAmount,
+        activeCashSession: {
+          id: "session-001",
+          initialAmount: 0,
+          openedAt: new Date().toISOString(),
+          userName: "Cajero Evento"
+        },
+        pendingTransactions: 0,
+        pendingTransactionsAmount: 0,
         growthPercentage
       });
     } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
+      console.error("Error computing local dashboard stats:", error);
     } finally {
       setLoading(false);
     }
@@ -195,10 +181,13 @@ export function useDashboardStats(lowStockThreshold: number = 10) {
   useEffect(() => {
     fetchStats();
     
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+    // Escuchar actualizaciones de almacenamiento local
+    const handleStorageChange = () => fetchStats();
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [fetchStats]);
 
   return { stats, loading, refresh: fetchStats };
 }
+

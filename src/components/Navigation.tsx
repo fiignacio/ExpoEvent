@@ -13,6 +13,7 @@ import {
   KeyRound,
   BarChart3,
   MoreHorizontal,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -31,9 +32,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const navItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard, key: "dashboard" },
   { name: "Punto de Venta", path: "/pos", icon: ShoppingCart, key: "pos" },
-  { name: "Inventario", path: "/inventory", icon: Package, key: "inventory" },
+  { name: "Inventario & Promos", path: "/inventory", icon: Package, key: "inventory" },
+  { name: "Reportes & Ventas", path: "/reports", icon: FileText, key: "reports" },
   { name: "Clientes", path: "/customers", icon: Users, key: "customers" },
-  { name: "Reportes", path: "/reports", icon: FileText, key: "reports" },
   { name: "Dashboard Clientes", path: "/customer-dashboard", icon: BarChart3, key: "customer_dashboard" },
   { name: "Configuración", path: "/settings", icon: Settings, key: "settings" },
   { name: "Usuarios", path: "/users", icon: Shield, key: "users" },
@@ -50,31 +51,35 @@ export const Navigation = () => {
     const fetchPermissions = async () => {
       if (!role) return;
 
-      const { data } = await supabase
-        .from('role_permissions')
-        .select('menu_item, enabled')
-        .eq('role', role);
+      try {
+        const { data } = await supabase
+          .from('role_permissions')
+          .select('menu_item, enabled')
+          .eq('role', role);
 
-      const permsMap: Record<string, boolean> = {};
-      data?.forEach(perm => {
-        permsMap[perm.menu_item] = perm.enabled;
-      });
-      setPermissions(permsMap);
+        if (data && data.length > 0) {
+          const permsMap: Record<string, boolean> = {};
+          data.forEach(perm => {
+            permsMap[perm.menu_item] = perm.enabled;
+          });
+          setPermissions(permsMap);
+        }
+      } catch (e) {
+        console.log("Permissions fetch skipped:", e);
+      }
     };
 
     fetchPermissions();
   }, [role]);
 
-  // Si no hay permisos cargados aún, mostrar al menos Dashboard
   const hasPermissions = Object.keys(permissions).length > 0;
   const filteredNavItems = hasPermissions 
     ? navItems.filter((item) => permissions[item.key] === true)
-    : [navItems[0]]; // Solo Dashboard mientras cargan permisos
+    : navItems; // Mostrar navItems por defecto si no hay restricciones explícitas
 
   if (isMobile) {
-    // Solo mostrar 3 items para garantizar espacio para el botón "Más"
-    const visibleItems = filteredNavItems.slice(0, 3);
-    const hiddenItems = filteredNavItems.slice(3);
+    const visibleItems = filteredNavItems.slice(0, 4);
+    const hiddenItems = filteredNavItems.slice(4);
 
     return (
       <nav className="flex justify-around items-center w-full">
@@ -89,7 +94,7 @@ export const Navigation = () => {
               className={cn(
                 "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all",
                 isActive
-                  ? "text-primary"
+                  ? "text-primary font-bold"
                   : "text-muted-foreground"
               )}
             >
@@ -99,7 +104,6 @@ export const Navigation = () => {
           );
         })}
         
-        {/* Siempre mostrar el botón Más para acceder al logout */}
         <Sheet>
           <SheetTrigger asChild>
             <button className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all text-muted-foreground">
@@ -109,7 +113,10 @@ export const Navigation = () => {
           </SheetTrigger>
           <SheetContent side="bottom" className="h-auto max-h-[70vh]">
             <SheetHeader>
-              <SheetTitle>Menú</SheetTitle>
+              <SheetTitle className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                ExpoVentas POS
+              </SheetTitle>
             </SheetHeader>
             <div className="py-4 space-y-2">
               {hiddenItems.map((item) => {
@@ -123,7 +130,7 @@ export const Navigation = () => {
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
                       isActive
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-primary/10 text-primary font-semibold"
                         : "text-muted-foreground hover:bg-accent"
                     )}
                   >
@@ -165,26 +172,43 @@ export const Navigation = () => {
   // Desktop: sidebar completa
   return (
     <nav className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border p-6 flex flex-col z-50">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          POS System
-        </h1>
-        {profile && (
-          <div className="mt-4">
-            <p className="text-sm font-medium truncate">{profile.full_name}</p>
-            <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
-            {role && (
-              <p className="text-xs text-primary mt-1">
-                {role === "admin" ? "Administrador" : "Cajero"}
-              </p>
-            )}
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center text-white shadow-md">
+            <ShoppingCart className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-extrabold bg-gradient-primary bg-clip-text text-transparent leading-tight">
+              ExpoVentas POS
+            </h1>
+            <p className="text-[11px] text-muted-foreground font-medium">Ventas para Eventos</p>
+          </div>
+        </div>
+
+        {profile ? (
+          <div className="mt-4 p-2.5 rounded-lg bg-accent/40 border border-border/50">
+            <p className="text-xs font-semibold truncate">{profile.full_name}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{profile.email}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 capitalize">
+                {role === "admin" ? "Administrador" : "Cajero Evento"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+              Modo Evento Activo
+            </span>
           </div>
         )}
       </div>
 
       <Separator className="mb-4" />
 
-      <div className="space-y-2 flex-1 overflow-y-auto">
+      <div className="space-y-1.5 flex-1 overflow-y-auto pr-1">
         {filteredNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -194,14 +218,14 @@ export const Navigation = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
+                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200",
                 isActive
-                  ? "bg-gradient-primary text-white shadow-elegant"
+                  ? "bg-gradient-primary text-white shadow-md font-semibold"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               )}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium truncate">{item.name}</span>
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{item.name}</span>
             </Link>
           );
         })}
@@ -209,19 +233,21 @@ export const Navigation = () => {
 
       <Separator className="my-4" />
 
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-muted-foreground">Tema</span>
+      <div className="flex items-center justify-between mb-3 px-1">
+        <span className="text-xs text-muted-foreground">Apariencia</span>
         <ThemeToggle />
       </div>
 
       <Button
         variant="ghost"
-        className="w-full justify-start text-muted-foreground hover:text-foreground"
+        size="sm"
+        className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         onClick={signOut}
       >
-        <LogOut className="w-5 h-5 mr-3 flex-shrink-0" />
-        <span className="truncate">Cerrar Sesión</span>
+        <LogOut className="w-4 h-4 mr-2.5 flex-shrink-0" />
+        <span className="truncate text-xs font-medium">Cerrar Sesión</span>
       </Button>
     </nav>
   );
 };
+

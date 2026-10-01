@@ -31,25 +31,57 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
   };
 
   const downloadTemplate = () => {
-    const template = [
-      {
-        nombre: "Café Americano",
-        sku: "BEB-001",
-        categoria: "Bebidas",
-        stock: 100,
-        precio: 5.0,
-        costo: 2.5,
-        promo_tipo: "bulk",
-        promo_cantidad: 3,
-        promo_precio: 12.0,
-      },
-    ];
+    try {
+      const template = [
+        {
+          nombre: "Polera Oficial Evento",
+          sku: "TSH-001",
+          categoria: "Merchandising",
+          stock: 100,
+          precio: 15000,
+          costo: 7000,
+          promo_tipo: "bulk",
+          promo_cantidad: 2,
+          promo_precio: 25000,
+        },
+        {
+          nombre: "Gorro Bordado",
+          sku: "CAP-001",
+          categoria: "Merchandising",
+          stock: 50,
+          precio: 10000,
+          costo: 4000,
+          promo_tipo: "percentage",
+          promo_cantidad: 1,
+          promo_precio: 8500,
+        },
+      ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Productos");
-    XLSX.writeFile(wb, "plantilla_productos.xlsx");
-    toast.success("Plantilla descargada");
+      const ws = XLSX.utils.json_to_sheet(template);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Productos");
+
+      // Usar Blob y URL de objeto para descarga segura en cualquier navegador
+      const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "plantilla_productos_expoventas.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success("Plantilla descargada correctamente");
+    } catch (error: any) {
+      console.error("Error descargando plantilla:", error);
+      toast.error("Error al descargar la plantilla: " + error.message);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,10 +237,21 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
               </Button>
             </label>
           </div>
-          <Button variant="outline" className="w-full" onClick={downloadTemplate}>
-            <Download className="w-4 h-4 mr-2" />
-            Descargar Plantilla
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="w-full" onClick={downloadTemplate}>
+              <Download className="w-4 h-4 mr-2" />
+              Descargar Plantilla (.xlsx)
+            </Button>
+            <a 
+              href="/plantilla_productos_expoventas.xlsx" 
+              download="plantilla_productos_expoventas.xlsx"
+              tabIndex={-1}
+            >
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground whitespace-nowrap">
+                Enlace Directo
+              </Button>
+            </a>
+          </div>
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="font-semibold">Columnas requeridas:</p>
             <p>• nombre, sku, categoria, stock, precio, costo</p>
