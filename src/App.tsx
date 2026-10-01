@@ -121,17 +121,58 @@ const AppRoutes = () => {
   );
 };
 
+class ChunkErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    const errorStr = error?.toString() || "";
+    if (
+      errorStr.includes("Failed to fetch dynamically imported module") ||
+      errorStr.includes("Importing a module script failed") ||
+      errorStr.includes("Expected a JavaScript-or-Wasm module script") ||
+      errorStr.includes("MIME type")
+    ) {
+      console.warn("Capturado error de módulo desactualizado. Recargando app...");
+      window.location.reload();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen space-y-4 p-4 text-center">
+          <p className="text-lg font-semibold">Actualizando aplicación...</p>
+          <p className="text-sm text-muted-foreground">Cargando los últimos cambios del evento...</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </BrowserRouter>
+        <ChunkErrorBoundary>
+          <BrowserRouter>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+          </BrowserRouter>
+        </ChunkErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
