@@ -235,8 +235,39 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       }
     });
 
+    // Cargar sesiones reales de la caja para el reporte Z
+    let sessions: any[] = [];
+    try {
+      const stored = localStorage.getItem("expoventas_cash_sessions");
+      if (stored) {
+        const parsed: any[] = JSON.parse(stored);
+        sessions = parsed.filter((s: any) => {
+          const openTs = new Date(s.opened_at).getTime();
+          return openTs >= startDate && openTs <= endDate;
+        }).map(s => ({
+          ...s,
+          initial_amount: Number(s.initial_amount || 0),
+          final_amount: s.final_amount != null ? Number(s.final_amount) : null,
+          profiles: { full_name: "Cajero Evento" }
+        }));
+      }
+    } catch (e) {
+      console.error("Error reading cash sessions for Z Report:", e);
+    }
+
+    if (sessions.length === 0) {
+      sessions = [{
+        id: "session-001",
+        opened_at: new Date(startDate).toISOString(),
+        initial_amount: 0,
+        final_amount: null,
+        status: "closed",
+        profiles: { full_name: "Cajero Evento" }
+      }];
+    }
+
     return {
-      sessionCount: 1,
+      sessionCount: sessions.length,
       totalSales,
       totalTransactions: sales.length,
       cashTotal,
@@ -249,7 +280,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       totalChange,
       usdSalesCount,
       usdTotalReceived,
-      sessions: [{ id: "session-001", opened_at: new Date().toISOString(), profiles: { full_name: "Cajero Evento" } }]
+      sessions
     };
   };
 

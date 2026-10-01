@@ -63,7 +63,15 @@ export function useCashSessions() {
         // Combinar remotas y locales por ID
         const sessionMap = new Map<string, CashSession>();
         local.forEach(s => sessionMap.set(s.id, { ...s, profiles: { full_name: "Cajero Evento" } }));
-        mappedRemote.forEach(s => sessionMap.set(s.id, s));
+        mappedRemote.forEach(s => {
+          const localSession = sessionMap.get(s.id);
+          sessionMap.set(s.id, {
+            ...s,
+            initial_amount: s.initial_amount || localSession?.initial_amount || 0,
+            final_amount: s.final_amount ?? localSession?.final_amount ?? null,
+            profiles: { full_name: "Cajero Evento" }
+          });
+        });
 
         const merged = Array.from(sessionMap.values()).sort(
           (a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime()

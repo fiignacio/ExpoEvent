@@ -51,32 +51,44 @@ export function useOfflineSync() {
     try {
       const stored = localStorage.getItem(OFFLINE_SALES_KEY);
       if (stored) {
-        setPendingSales(JSON.parse(stored));
+        const parsed: OfflineSale[] = JSON.parse(stored);
+        const actualPending = parsed.filter((s: any) => s.paymentMethod === "pendiente" || s.synced === false);
+        setPendingSales(actualPending);
+      } else {
+        setPendingSales([]);
       }
     } catch (error) {
       console.error("Error loading pending sales:", error);
     }
   };
 
-  const savePendingSales = (sales: OfflineSale[]) => {
+  const savePendingSales = (allSales: any[]) => {
     try {
-      localStorage.setItem(OFFLINE_SALES_KEY, JSON.stringify(sales));
-      setPendingSales(sales);
+      localStorage.setItem(OFFLINE_SALES_KEY, JSON.stringify(allSales));
+      const actualPending = allSales.filter((s: any) => s.paymentMethod === "pendiente" || s.synced === false);
+      setPendingSales(actualPending);
     } catch (error) {
       console.error("Error saving pending sales:", error);
     }
   };
 
   const addOfflineSale = (sale: Omit<OfflineSale, "id" | "timestamp">) => {
-    const newSale: OfflineSale = {
+    const isPendingMethod = sale.paymentMethod === "pendiente";
+    const newSale: any = {
       ...sale,
       id: crypto.randomUUID(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      synced: !isPendingMethod
     };
 
-    const updated = [...pendingSales, newSale];
+    let allStored: any[] = [];
+    try {
+      const stored = localStorage.getItem(OFFLINE_SALES_KEY);
+      if (stored) allStored = JSON.parse(stored);
+    } catch {}
+
+    const updated = [newSale, ...allStored.filter((s: any) => s.id !== newSale.id)];
     savePendingSales(updated);
-    toast.info("Venta guardada para sincronización");
     return newSale;
   };
 

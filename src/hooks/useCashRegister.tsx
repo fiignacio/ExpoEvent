@@ -148,6 +148,7 @@ export function useCashRegister() {
       await supabase
         .from('cash_register_sessions')
         .update({
+          initial_amount: currentSession.initial_amount,
           final_amount: finalAmount,
           closed_at: closedSession.closed_at,
           status: 'closed'
