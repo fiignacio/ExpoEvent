@@ -42,7 +42,7 @@ export function useProducts() {
         .select("*")
         .order("name");
 
-      if (!error && data && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const mappedProducts: Product[] = data.map((item: any) => ({
           id: item.id,
           name: item.name,
