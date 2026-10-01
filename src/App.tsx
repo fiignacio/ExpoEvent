@@ -9,20 +9,37 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PageLoader } from "@/components/PageLoader";
 import { queryClient } from "@/lib/queryClient";
 import { ThemeProvider } from "next-themes";
-// Lazy load de páginas para code splitting
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const POS = lazy(() => import("./pages/POS"));
-const Inventory = lazy(() => import("./pages/Inventory"));
-const Customers = lazy(() => import("./pages/Customers"));
-const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Users = lazy(() => import("./pages/Users"));
-const AccessCodes = lazy(() => import("./pages/AccessCodes"));
-const Auth = lazy(() => import("./pages/Auth"));
-const CreateTestUsers = lazy(() => import("./pages/CreateTestUsers"));
-const InstallPWA = lazy(() => import("./pages/InstallPWA"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const lazyWithRetry = (componentImport: () => Promise<any>) =>
+  lazy(async () => {
+    const pageHasAlreadyBeenReloaded = sessionStorage.getItem("page_reloaded_for_chunk");
+    try {
+      const component = await componentImport();
+      sessionStorage.removeItem("page_reloaded_for_chunk");
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenReloaded) {
+        sessionStorage.setItem("page_reloaded_for_chunk", "true");
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      throw error;
+    }
+  });
+
+// Lazy load de páginas con autorrecarga si cambia la versión desplegada
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const POS = lazyWithRetry(() => import("./pages/POS"));
+const Inventory = lazyWithRetry(() => import("./pages/Inventory"));
+const Customers = lazyWithRetry(() => import("./pages/Customers"));
+const CustomerDashboard = lazyWithRetry(() => import("./pages/CustomerDashboard"));
+const Reports = lazyWithRetry(() => import("./pages/Reports"));
+const Settings = lazyWithRetry(() => import("./pages/Settings"));
+const Users = lazyWithRetry(() => import("./pages/Users"));
+const AccessCodes = lazyWithRetry(() => import("./pages/AccessCodes"));
+const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const CreateTestUsers = lazyWithRetry(() => import("./pages/CreateTestUsers"));
+const InstallPWA = lazyWithRetry(() => import("./pages/InstallPWA"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
   const { user, role, loading } = useAuth();
