@@ -176,8 +176,10 @@ export default function Reports() {
     try {
       const { startDate, endDate } = getDateRange();
 
-      // Get suppliers with their linked products
-      const { data: suppliers, error: suppliersError } = await supabase
+      let suppliersList: any[] = [];
+
+      // Try relational query first
+      const { data: relationalSuppliers, error: relError } = await supabase
         .from('customers')
         .select(`
           id,
@@ -190,21 +192,34 @@ export default function Reports() {
         `)
         .eq('type', 'proveedor');
 
-      if (suppliersError) throw suppliersError;
+      if (!relError && relationalSuppliers) {
+        suppliersList = relationalSuppliers;
+      } else {
+        const { data: baseSuppliers } = await supabase
+          .from('customers')
+          .select('id, name')
+          .eq('type', 'proveedor');
+
+        if (baseSuppliers) {
+          suppliersList = baseSuppliers.map(s => ({ ...s, customer_products: [] }));
+        }
+      }
 
       // Get transactions for suppliers
-      const { data: transactions, error: txError } = await supabase
-        .from('customer_transactions')
-        .select('*')
-        .in('customer_id', suppliers?.map(s => s.id) || [])
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
-
-      if (txError) throw txError;
+      let transactions: any[] = [];
+      if (suppliersList.length > 0) {
+        const { data: txData } = await supabase
+          .from('customer_transactions')
+          .select('*')
+          .in('customer_id', suppliersList.map(s => s.id))
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString());
+        if (txData) transactions = txData;
+      }
 
       // Calculate totals per supplier
-      const supplierData = suppliers?.map(supplier => {
-        const supplierTx = transactions?.filter(tx => tx.customer_id === supplier.id) || [];
+      const supplierData = suppliersList.map(supplier => {
+        const supplierTx = transactions.filter(tx => tx.customer_id === supplier.id);
         const totalDebt = supplierTx
           .filter(tx => tx.type === 'debt' && tx.status === 'pending')
           .reduce((sum, tx) => sum + Number(tx.amount), 0);
@@ -222,7 +237,7 @@ export default function Reports() {
           pendingCount,
           transactions: supplierTx
         };
-      }) || [];
+      });
 
       setSupplierSalesData(supplierData.filter(s => s.totalDebt > 0 || s.totalPaid > 0 || s.productsLinked > 0));
     } catch (error) {

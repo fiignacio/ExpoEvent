@@ -168,8 +168,8 @@ INSERT INTO public.access_codes (code, role) VALUES ('1234', 'cajero'), ('ADMIN'
 
 CREATE TABLE public.customer_products (
   id TEXT NOT NULL DEFAULT gen_random_uuid()::text PRIMARY KEY,
-  customer_id TEXT NOT NULL,
-  product_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   price NUMERIC NOT NULL DEFAULT 0
 );
 
@@ -178,7 +178,7 @@ CREATE POLICY "Todos pueden customer_products" ON public.customer_products FOR A
 
 CREATE TABLE public.customer_transactions (
   id TEXT NOT NULL DEFAULT gen_random_uuid()::text PRIMARY KEY,
-  customer_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
   type TEXT NOT NULL,
   amount NUMERIC NOT NULL DEFAULT 0,
   description TEXT,
@@ -217,7 +217,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 8. REPLICACIÓN EN TIEMPO REAL (REALTIME)
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE public.products, public.offline_sales, public.settings, public.cash_register_sessions;
+  CREATE PUBLICATION supabase_realtime FOR TABLE public.products, public.offline_sales, public.settings, public.cash_register_sessions, public.customers, public.customer_products, public.customer_transactions;
 COMMIT;
 
 -- 9. PRODUCTOS INICIALES DEL EVENTO (UUIDs Estándar Compatibles)

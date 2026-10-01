@@ -77,6 +77,40 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
     }
   };
 
+  const getAllCombinedSales = async (): Promise<any[]> => {
+    const local = getLocalSales();
+    const salesMap = new Map<string, any>();
+    local.forEach(s => salesMap.set(s.id, s));
+
+    try {
+      const { data, error } = await supabase.from("offline_sales").select("*");
+      if (!error && Array.isArray(data)) {
+        data.forEach((s: any) => {
+          if (!salesMap.has(s.id)) {
+            salesMap.set(s.id, {
+              id: s.id,
+              sessionId: s.session_id,
+              items: s.items || [],
+              subtotal: Number(s.subtotal || 0),
+              tax: Number(s.tax || 0),
+              total: Number(s.total || 0),
+              paymentMethod: s.payment_method || "efectivo",
+              changeAmount: Number(s.change_amount || 0),
+              cash_amount: Number(s.cash_amount || 0),
+              paid_in_usd: s.paid_in_usd,
+              usd_amount: Number(s.usd_amount || 0),
+              timestamp: new Date(s.created_at || Date.now()).getTime()
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Could not fetch remote sales for report, using local:", e);
+    }
+
+    return Array.from(salesMap.values());
+  };
+
   const fetchReportsData = async () => {
     try {
       setLoading(true);
@@ -84,7 +118,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       const startDate = startOfDay(subDays(baseEnd, days - 1)).getTime();
       const endDate = endOfDay(baseEnd).getTime();
 
-      const allSales = getLocalSales();
+      const allSales = await getAllCombinedSales();
       const sales = allSales.filter(s => {
         const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
         return ts >= startDate && ts <= endDate;
@@ -195,7 +229,8 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
     const startDate = startOfDay(targetDate).getTime();
     const endDate = endOfDay(targetDate).getTime();
 
-    const sales = getLocalSales().filter(s => {
+    const allSales = await getAllCombinedSales();
+    const sales = allSales.filter(s => {
       const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
       return ts >= startDate && ts <= endDate;
     });
