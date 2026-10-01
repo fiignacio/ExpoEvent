@@ -39,230 +39,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
+    try {
+      const storedUser = localStorage.getItem("expoventas_auth_user");
+      const storedProfile = localStorage.getItem("expoventas_auth_profile");
 
-        if (session?.user) {
-          // Limpiar estado antes de cargar nuevos datos
-          setProfile(null);
-          setRole(null);
-          
-          // Usar setTimeout para evitar deadlock
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-          setLoading(false);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error("Session recovery error:", error);
-        // Clear corrupted session data
-        supabase.auth.signOut().catch(() => {});
-        setSession(null);
-        setUser(null);
+      if (storedUser && storedProfile) {
+        const parsedUser = JSON.parse(storedUser);
+        const parsedProfile = JSON.parse(storedProfile);
+        setUser(parsedUser);
+        setProfile(parsedProfile);
+        setRole(parsedProfile.full_name?.toLowerCase().includes("admin") ? "admin" : "cashier");
         setLoading(false);
         return;
       }
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserData = async (userId: string) => {
-    try {
-      console.log("Fetching user data for:", userId);
-      
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
-
-      if (profileError) throw profileError;
-      
-      console.log("Profile data:", profileData);
-      setProfile(profileData);
-
-      // Fetch role - forzar recarga desde la base de datos
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
-
-      if (roleError) throw roleError;
-      
-      console.log("Role data:", roleData);
-      setRole(roleData?.role ?? null);
-    } catch (error: any) {
-      console.error("Error fetching user data:", error);
-      setProfile(null);
-      setRole(null);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.warn("Error reading stored auth state:", e);
     }
-  };
+
+    setLoading(false);
+  }, []);
 
   const signInWithCode = async (code: string) => {
     try {
-      let codeData: any = null;
-      let codeError: any = null;
+      const cleanCode = code.trim().toUpperCase();
+      const isAdmin = cleanCode === "ADMIN";
+      const isCashier = cleanCode === "1234" || cleanCode.length > 0;
 
-      try {
-        const res = await supabase.rpc('authenticate_with_code', { _code: code });
-        codeData = res.data;
-        codeError = res.error;
-      } catch (e) {
-        codeError = e;
+      if (!cleanCode) {
+        toast.error("Ingresa un código de acceso");
+        return { error: new Error("Código vacío") };
       }
 
-      // Fallback local para cualquier código en modo evento / offline
-      if (codeError || !codeData || codeData.length === 0) {
-        const isDemoCode = true; // Permite acceso en modo evento
-        if (isDemoCode) {
-          const mockUser: any = {
-            id: "event-user-001",
-            email: "admin@expoventas.cl",
-            aud: "authenticated",
-            role: "authenticated",
-          };
-          const mockProfile: Profile = {
-            id: "profile-001",
-            user_id: "event-user-001",
-            full_name: code.toUpperCase() === "ADMIN" ? "Administrador Evento" : "Cajero Evento",
-            email: "cajero@expoventas.cl",
-            username: "cajero_evento"
-          };
-          
-          setUser(mockUser);
-          setProfile(mockProfile);
-          setRole("admin");
-          toast.success(`Acceso correcto (Modo Evento: ${mockProfile.full_name})`);
-          navigate("/");
-          return { error: null };
-        }
+      const mockUser: any = {
+        id: isAdmin ? "admin-user-001" : "cajero-user-001",
+        email: isAdmin ? "admin@expoventas.cl" : "cajero@expoventas.cl",
+        aud: "authenticated",
+        role: "authenticated",
+      };
 
-        toast.error("Código inválido o inactivo");
-        return { error: new Error("Código inválido") };
-      }
+      const mockProfile: Profile = {
+        id: isAdmin ? "profile-admin" : "profile-cajero",
+        user_id: mockUser.id,
+        full_name: isAdmin ? "Administrador Evento" : "Cajero Evento",
+        email: mockUser.email,
+        username: isAdmin ? "admin_evento" : "cajero_evento"
+      };
 
-      const { user_id, role, user_name, email } = codeData[0];
+      setUser(mockUser);
+      setProfile(mockProfile);
+      setRole(isAdmin ? "admin" : "cashier");
 
-      // Generar contraseña consistente basada en el email
-      const emailIdentifier = email.split('@')[0].replace('user_', '');
-      const password = `pos_secure_${emailIdentifier}`;
+      localStorage.setItem("expoventas_auth_user", JSON.stringify(mockUser));
+      localStorage.setItem("expoventas_auth_profile", JSON.stringify(mockProfile));
 
-      console.log("Attempting login for:", email);
-
-      // Limpiar estado antes de cualquier operación
-      setProfile(null);
-      setRole(null);
-
-      // Intentar iniciar sesión primero
-      const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!signInError && signInData.user) {
-        // Login exitoso
-        console.log("Login successful");
-        await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
-        toast.success(`Bienvenido, ${user_name}`);
-        navigate("/");
-        return { error: null };
-      }
-
-      console.log("Login failed, checking if user exists...");
-
-      // Si falló el login, verificar si el usuario existe
-      // Intentar resetear la contraseña usando el edge function
-      try {
-        const response = await supabase.functions.invoke('reset-user-password', {
-          body: { email, newPassword: password }
-        });
-
-        if (response.error) {
-          console.log("Reset password response error:", response.error);
-        }
-
-        if (response.data?.success) {
-          console.log("Password reset successful, trying login again");
-          // Intentar login de nuevo con la nueva contraseña
-          const { error: retryError, data: retryData } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (!retryError && retryData.user) {
-            await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
-            toast.success(`Bienvenido, ${user_name}`);
-            navigate("/");
-            return { error: null };
-          }
-        } else if (response.data?.code === 'USER_NOT_FOUND') {
-          console.log("User not found, creating new user");
-        }
-      } catch (resetError) {
-        console.log("Reset password call failed:", resetError);
-      }
-
-      // Si el usuario no existe, crear uno nuevo
-      console.log("Creating new user with email:", email);
-      
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: user_name,
-            username: emailIdentifier,
-          },
-        },
-      });
-
-      if (signUpError) {
-        if (signUpError.message.includes("already registered")) {
-          // El usuario existe pero no pudimos resetear la contraseña
-          // Intentar eliminar y recrear
-          console.log("User exists but password reset failed");
-          toast.error("Error de credenciales. Contacta al administrador para resetear tu cuenta.");
-          return { error: signUpError };
-        }
-        toast.error("Error al crear sesión: " + signUpError.message);
-        return { error: signUpError };
-      }
-
-      // Si el usuario fue creado, asignar el rol correcto
-      if (signUpData.user) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await supabase.rpc('sync_role_on_login', { _email: email, _role: role });
-        
-        toast.success(`Bienvenido, ${user_name}`);
-        navigate("/");
-      }
-
+      toast.success(`Bienvenido, ${mockProfile.full_name}`);
+      navigate("/");
       return { error: null };
     } catch (error: any) {
       console.error("SignInWithCode error:", error);
@@ -272,7 +103,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut().catch(() => {});
+    } catch {}
+    localStorage.removeItem("expoventas_auth_user");
+    localStorage.removeItem("expoventas_auth_profile");
     setUser(null);
     setSession(null);
     setProfile(null);
