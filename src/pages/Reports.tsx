@@ -776,19 +776,17 @@ export default function Reports() {
                                     {format(new Date(session.opened_at), "HH:mm", { locale: es })}
                                     {session.closed_at && ` - ${format(new Date(session.closed_at), "HH:mm", { locale: es })}`}
                                   </span>
-                                </div>
-                                
-                                {/* Amounts grid */}
+                                </div>                                 {/* Amounts grid */}
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <div className="bg-muted/50 rounded-lg px-2 py-1 sm:px-3 sm:py-2">
                                     <div className="text-[10px] sm:text-xs text-muted-foreground">Inicial</div>
-                                    <div className="font-semibold text-xs sm:text-sm">${session.initial_amount.toLocaleString('es-CL')}</div>
+                                    <div className="font-semibold text-xs sm:text-sm">${(session.initial_amount || 0).toLocaleString('es-CL')}</div>
                                   </div>
                                   {session.status === 'closed' && session.final_amount && (
                                     <>
                                       <div className="bg-muted/50 rounded-lg px-2 py-1 sm:px-3 sm:py-2">
                                         <div className="text-[10px] sm:text-xs text-muted-foreground">Final</div>
-                                        <div className="font-semibold text-xs sm:text-sm">${session.final_amount.toLocaleString('es-CL')}</div>
+                                        <div className="font-semibold text-xs sm:text-sm">${(session.final_amount || 0).toLocaleString('es-CL')}</div>
                                       </div>
                                     </>
                                   )}
