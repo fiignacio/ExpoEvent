@@ -52,6 +52,18 @@ const CATEGORY_COLORS = [
 
 const OFFLINE_SALES_KEY = "offline_sales";
 
+export function parseSafeDate(val: any): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') {
+    const formatted = val.includes(' ') && !val.includes('T') ? val.replace(' ', 'T') : val;
+    const ts = new Date(formatted).getTime();
+    return isNaN(ts) ? 0 : ts;
+  }
+  if (val instanceof Date) return val.getTime();
+  return 0;
+}
+
 export function useReports(days: number = 7, endDateOverride?: Date) {
   const [salesData, setSalesData] = useState<DailySales[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -99,7 +111,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
               cash_amount: Number(s.cash_amount || 0),
               paid_in_usd: s.paid_in_usd,
               usd_amount: Number(s.usd_amount || 0),
-              timestamp: new Date(s.created_at || Date.now()).getTime()
+              timestamp: parseSafeDate(s.created_at || s.timestamp)
             });
           }
         });
@@ -120,7 +132,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
 
       const allSales = await getAllCombinedSales();
       const sales = allSales.filter(s => {
-        const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+        const ts = parseSafeDate(s.timestamp || s.created_at);
         return ts >= startDate && ts <= endDate;
       });
 
@@ -231,7 +243,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
 
     const allSales = await getAllCombinedSales();
     const sales = allSales.filter(s => {
-      const ts = s.timestamp || (s.created_at ? new Date(s.created_at).getTime() : 0);
+      const ts = parseSafeDate(s.timestamp || s.created_at);
       return ts >= startDate && ts <= endDate;
     });
 
@@ -301,7 +313,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
 
       const allMerged = Array.from(sessionMap.values());
       sessions = allMerged.filter((s: any) => {
-        const openTs = new Date(s.opened_at).getTime();
+        const openTs = parseSafeDate(s.opened_at || s.created_at);
         return openTs >= startDate && openTs <= endDate;
       });
     } catch (e) {

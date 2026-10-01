@@ -62,39 +62,101 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithCode = async (code: string) => {
     try {
       const cleanCode = code.trim().toUpperCase();
-      const isAdmin = cleanCode === "ADMIN";
-      const isCashier = cleanCode === "1234" || cleanCode.length > 0;
 
       if (!cleanCode) {
         toast.error("Ingresa un código de acceso");
         return { error: new Error("Código vacío") };
       }
 
-      const mockUser: any = {
-        id: isAdmin ? "admin-user-001" : "cajero-user-001",
-        email: isAdmin ? "admin@expoventas.cl" : "cajero@expoventas.cl",
-        aud: "authenticated",
-        role: "authenticated",
-      };
+      // 1. Código Admin por defecto
+      if (cleanCode === "ADMIN") {
+        const mockUser: any = {
+          id: "admin-user-001",
+          email: "admin@expoventas.cl",
+          aud: "authenticated",
+          role: "authenticated",
+        };
+        const mockProfile: Profile = {
+          id: "profile-admin",
+          user_id: mockUser.id,
+          full_name: "Administrador Evento",
+          email: mockUser.email,
+          username: "admin_evento"
+        };
+        setUser(mockUser);
+        setProfile(mockProfile);
+        setRole("admin");
+        localStorage.setItem("expoventas_auth_user", JSON.stringify(mockUser));
+        localStorage.setItem("expoventas_auth_profile", JSON.stringify(mockProfile));
+        toast.success("Bienvenido, Administrador Evento");
+        navigate("/");
+        return { error: null };
+      }
 
-      const mockProfile: Profile = {
-        id: isAdmin ? "profile-admin" : "profile-cajero",
-        user_id: mockUser.id,
-        full_name: isAdmin ? "Administrador Evento" : "Cajero Evento",
-        email: mockUser.email,
-        username: isAdmin ? "admin_evento" : "cajero_evento"
-      };
+      // 2. Código Cajero por defecto
+      if (cleanCode === "1234") {
+        const mockUser: any = {
+          id: "cajero-user-001",
+          email: "cajero@expoventas.cl",
+          aud: "authenticated",
+          role: "authenticated",
+        };
+        const mockProfile: Profile = {
+          id: "profile-cajero",
+          user_id: mockUser.id,
+          full_name: "Cajero Evento",
+          email: mockUser.email,
+          username: "cajero_evento"
+        };
+        setUser(mockUser);
+        setProfile(mockProfile);
+        setRole("cashier");
+        localStorage.setItem("expoventas_auth_user", JSON.stringify(mockUser));
+        localStorage.setItem("expoventas_auth_profile", JSON.stringify(mockProfile));
+        toast.success("Bienvenido, Cajero Evento");
+        navigate("/");
+        return { error: null };
+      }
 
-      setUser(mockUser);
-      setProfile(mockProfile);
-      setRole(isAdmin ? "admin" : "cashier");
+      // 3. Consultar código de acceso personalizado en Supabase
+      try {
+        const { data: dbCode, error: dbErr } = await supabase
+          .from("access_codes")
+          .select("*")
+          .eq("code", cleanCode)
+          .maybeSingle();
 
-      localStorage.setItem("expoventas_auth_user", JSON.stringify(mockUser));
-      localStorage.setItem("expoventas_auth_profile", JSON.stringify(mockProfile));
+        if (!dbErr && dbCode) {
+          const userRole = dbCode.role === "admin" ? "admin" : "cashier";
+          const mockUser: any = {
+            id: `user-${dbCode.id}`,
+            email: `${userRole}@expoventas.cl`,
+            aud: "authenticated",
+            role: "authenticated",
+          };
+          const mockProfile: Profile = {
+            id: `profile-${dbCode.id}`,
+            user_id: mockUser.id,
+            full_name: userRole === "admin" ? "Administrador Evento" : "Cajero Evento",
+            email: mockUser.email,
+            username: `${userRole}_evento`
+          };
+          setUser(mockUser);
+          setProfile(mockProfile);
+          setRole(userRole);
+          localStorage.setItem("expoventas_auth_user", JSON.stringify(mockUser));
+          localStorage.setItem("expoventas_auth_profile", JSON.stringify(mockProfile));
+          toast.success(`Bienvenido, ${mockProfile.full_name}`);
+          navigate("/");
+          return { error: null };
+        }
+      } catch (e) {
+        console.warn("Error consultando access_codes:", e);
+      }
 
-      toast.success(`Bienvenido, ${mockProfile.full_name}`);
-      navigate("/");
-      return { error: null };
+      // 4. Si no coincide con ningún código válido, RECHAZAR
+      toast.error("Código de acceso incorrecto (Ej: 1234 o ADMIN)");
+      return { error: new Error("Código de acceso inválido") };
     } catch (error: any) {
       console.error("SignInWithCode error:", error);
       toast.error("Error al iniciar sesión");

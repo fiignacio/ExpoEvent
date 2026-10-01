@@ -63,6 +63,7 @@ CREATE TABLE public.offline_sales (
 ALTER TABLE public.offline_sales ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Todos pueden ver ventas" ON public.offline_sales FOR SELECT USING (true);
 CREATE POLICY "Todos pueden crear ventas" ON public.offline_sales FOR INSERT WITH CHECK (true);
+CREATE POLICY "Todos pueden modificar ventas" ON public.offline_sales FOR ALL USING (true) WITH CHECK (true);
 
 -- 3. TABLA DE CONFIGURACIONES (SETTINGS)
 CREATE TABLE public.settings (
@@ -90,7 +91,7 @@ CREATE TABLE public.settings (
 
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Todos pueden ver settings" ON public.settings FOR SELECT USING (true);
-CREATE POLICY "Todos pueden modificar settings" ON public.settings FOR ALL USING (true);
+CREATE POLICY "Todos pueden modificar settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO public.settings (id, business_name, tax_rate) VALUES ('default', 'ExpoVentas POS', 0) ON CONFLICT DO NOTHING;
 
@@ -107,7 +108,7 @@ CREATE TABLE public.cash_register_sessions (
 
 ALTER TABLE public.cash_register_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Todos pueden ver sesiones" ON public.cash_register_sessions FOR SELECT USING (true);
-CREATE POLICY "Todos pueden modificar sesiones" ON public.cash_register_sessions FOR ALL USING (true);
+CREATE POLICY "Todos pueden modificar sesiones" ON public.cash_register_sessions FOR ALL USING (true) WITH CHECK (true);
 
 -- 5. TABLA DE CLIENTES Y PROVEEDORES
 CREATE TABLE public.customers (
@@ -201,8 +202,10 @@ RETURNS TABLE (
 BEGIN
   IF UPPER(_code) = 'ADMIN' THEN
     RETURN QUERY SELECT 'admin-001'::TEXT, 'admin'::TEXT, 'Administrador Evento'::TEXT, 'admin@expoventas.cl'::TEXT;
-  ELSIF _code = '1234' OR _code IS NOT NULL THEN
+  ELSIF _code = '1234' THEN
     RETURN QUERY SELECT 'cajero-001'::TEXT, 'cajero'::TEXT, 'Cajero Evento'::TEXT, 'cajero@expoventas.cl'::TEXT;
+  ELSE
+    RETURN QUERY SELECT ac.id::TEXT, ac.role::TEXT, CASE WHEN ac.role = 'admin' THEN 'Administrador Evento' ELSE 'Cajero Evento' END, ac.role || '@expoventas.cl' FROM public.access_codes ac WHERE ac.code = _code;
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
