@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Product } from "@/types/product";
 import { ExcelImport } from "@/components/ExcelImport";
+import { InventoryExportMenu } from "@/components/InventoryExportMenu";
 import { ProductDialog } from "@/components/ProductDialog";
 import { EditableCell } from "@/components/EditableCell";
 import { getPromotionLabel } from "@/utils/promotions";
@@ -350,6 +351,13 @@ export default function Inventory() {
           </Button>
           
           <ExcelImport onImport={handleBulkImport} />
+          
+          <InventoryExportMenu
+            allProducts={products}
+            filteredProducts={filteredInventory}
+            selectedProducts={products.filter((p) => selectedIds.has(p.id))}
+            searchTerm={searchTerm}
+          />
           
           <ProductDialog 
             onSave={handleAddProduct}
