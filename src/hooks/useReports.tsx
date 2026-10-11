@@ -79,6 +79,57 @@ export function parseSafeDate(val: any): number {
   return 0;
 }
 
+export const getLocalSales = (): any[] => {
+  try {
+    const stored = localStorage.getItem(OFFLINE_SALES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const getAllCombinedSales = async (): Promise<any[]> => {
+  const local = getLocalSales();
+  const salesMap = new Map<string, any>();
+  local.forEach(s => salesMap.set(s.id, {
+    ...s,
+    paymentMethod: s.paymentMethod || s.payment_method || "efectivo",
+    payment_method: s.payment_method || s.paymentMethod || "efectivo",
+    total: Number(s.total || 0),
+    timestamp: parseSafeDate(s.timestamp || s.created_at)
+  }));
+
+  try {
+    const { data, error } = await supabase.from("offline_sales").select("*");
+    if (!error && Array.isArray(data)) {
+      data.forEach((s: any) => {
+        if (!salesMap.has(s.id)) {
+          salesMap.set(s.id, {
+            id: s.id,
+            sessionId: s.session_id,
+            items: s.items || [],
+            subtotal: Number(s.subtotal || 0),
+            tax: Number(s.tax || 0),
+            total: Number(s.total || 0),
+            paymentMethod: s.payment_method || "efectivo",
+            payment_method: s.payment_method || "efectivo",
+            changeAmount: Number(s.change_amount || 0),
+            cash_amount: Number(s.cash_amount || 0),
+            paid_in_usd: s.paid_in_usd,
+            usd_amount: Number(s.usd_amount || 0),
+            created_at: s.created_at,
+            timestamp: parseSafeDate(s.created_at || s.timestamp)
+          });
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("Could not fetch remote sales for report, using local:", e);
+  }
+
+  return Array.from(salesMap.values());
+};
+
 export function useReports(days: number = 7, endDateOverride?: Date) {
   const [salesData, setSalesData] = useState<DailySales[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -95,49 +146,6 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
   useEffect(() => {
     fetchReportsData();
   }, [days, endKey]);
-
-  const getLocalSales = (): any[] => {
-    try {
-      const stored = localStorage.getItem(OFFLINE_SALES_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const getAllCombinedSales = async (): Promise<any[]> => {
-    const local = getLocalSales();
-    const salesMap = new Map<string, any>();
-    local.forEach(s => salesMap.set(s.id, s));
-
-    try {
-      const { data, error } = await supabase.from("offline_sales").select("*");
-      if (!error && Array.isArray(data)) {
-        data.forEach((s: any) => {
-          if (!salesMap.has(s.id)) {
-            salesMap.set(s.id, {
-              id: s.id,
-              sessionId: s.session_id,
-              items: s.items || [],
-              subtotal: Number(s.subtotal || 0),
-              tax: Number(s.tax || 0),
-              total: Number(s.total || 0),
-              paymentMethod: s.payment_method || "efectivo",
-              changeAmount: Number(s.change_amount || 0),
-              cash_amount: Number(s.cash_amount || 0),
-              paid_in_usd: s.paid_in_usd,
-              usd_amount: Number(s.usd_amount || 0),
-              timestamp: parseSafeDate(s.created_at || s.timestamp)
-            });
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("Could not fetch remote sales for report, using local:", e);
-    }
-
-    return Array.from(salesMap.values());
-  };
 
   const fetchReportsData = async () => {
     try {

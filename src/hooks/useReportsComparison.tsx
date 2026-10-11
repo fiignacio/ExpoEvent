@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, endOfDay, subDays, format } from "date-fns";
+import { getAllCombinedSales, parseSafeDate } from "@/hooks/useReports";
 
 interface PeriodComparison {
   currentPeriod: {
@@ -58,27 +58,27 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
       const previousEndDate = endOfDay(subDays(currentStartDate, 1));
       const previousStartDate = startOfDay(subDays(previousEndDate, days - 1));
 
-      // Fetch current period sales
-      const { data: currentSales, error: currentError } = await supabase
-        .from('offline_sales')
-        .select('*')
-        .gte('created_at', currentStartDate.toISOString())
-        .lte('created_at', currentEndDate.toISOString());
+      const currentStartTime = currentStartDate.getTime();
+      const currentEndTime = currentEndDate.getTime();
+      const previousStartTime = previousStartDate.getTime();
+      const previousEndTime = previousEndDate.getTime();
 
-      if (currentError) throw currentError;
+      // Obtener todas las ventas combinadas (local + Supabase) para evitar discrepancias
+      const allSales = await getAllCombinedSales();
 
-      // Fetch previous period sales
-      const { data: previousSales, error: previousError } = await supabase
-        .from('offline_sales')
-        .select('*')
-        .gte('created_at', previousStartDate.toISOString())
-        .lte('created_at', previousEndDate.toISOString());
+      const currentSales = allSales.filter(s => {
+        const ts = parseSafeDate(s.timestamp || s.created_at);
+        return ts >= currentStartTime && ts <= currentEndTime;
+      });
 
-      if (previousError) throw previousError;
+      const previousSales = allSales.filter(s => {
+        const ts = parseSafeDate(s.timestamp || s.created_at);
+        return ts >= previousStartTime && ts <= previousEndTime;
+      });
 
       // Calculate current period metrics
-      const currentMetrics = calculateMetrics(currentSales || []);
-      const previousMetrics = calculateMetrics(previousSales || []);
+      const currentMetrics = calculateMetrics(currentSales);
+      const previousMetrics = calculateMetrics(previousSales);
 
       // Calculate percentage changes
       const changes = {
@@ -95,12 +95,12 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
       });
 
       // Calculate daily comparison
-      const dailyData = calculateDailyComparison(currentSales || [], previousSales || [], days);
+      const dailyData = calculateDailyComparison(currentSales, previousSales, days);
       setDailyComparison(dailyData);
 
       // Calculate payment methods comparison
-      const currentPayments = calculatePaymentMethods(currentSales || []);
-      const previousPayments = calculatePaymentMethods(previousSales || []);
+      const currentPayments = calculatePaymentMethods(currentSales);
+      const previousPayments = calculatePaymentMethods(previousSales);
       setPaymentMethodsComparison({ current: currentPayments, previous: previousPayments });
 
     } catch (error) {
@@ -115,10 +115,10 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
     let totalProducts = 0;
 
     sales.forEach((sale) => {
-      totalSales += sale.total || 0;
+      totalSales += Number(sale.total || 0);
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach((item: any) => {
-          totalProducts += item.quantity || 0;
+          totalProducts += Number(item.quantity || 0);
         });
       }
     });
@@ -138,25 +138,38 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
 
   const calculateDailyComparison = (currentSales: any[], previousSales: any[], daysCount: number): DailyComparisonData[] => {
     const result: DailyComparisonData[] = [];
+    const baseEnd = endDateOverride ?? new Date();
     
     for (let i = daysCount - 1; i >= 0; i--) {
-      const currentDate = subDays(endDateOverride ?? new Date(), i);
+      const currentDate = subDays(baseEnd, i);
       const previousDate = subDays(currentDate, daysCount);
       
+      const currentStart = startOfDay(currentDate).getTime();
+      const currentEnd = endOfDay(currentDate).getTime();
+      const prevStart = startOfDay(previousDate).getTime();
+      const prevEnd = endOfDay(previousDate).getTime();
+
       const currentDateStr = format(currentDate, 'yyyy-MM-dd');
-      const previousDateStr = format(previousDate, 'yyyy-MM-dd');
       
       const currentDaySales = currentSales
-        .filter(s => format(new Date(s.created_at), 'yyyy-MM-dd') === currentDateStr)
-        .reduce((sum, s) => sum + (s.total || 0), 0);
+        .filter(s => {
+          const ts = parseSafeDate(s.timestamp || s.created_at);
+          return ts >= currentStart && ts <= currentEnd;
+        })
+        .reduce((sum, s) => sum + Number(s.total || 0), 0);
       
       const previousDaySales = previousSales
-        .filter(s => format(new Date(s.created_at), 'yyyy-MM-dd') === previousDateStr)
-        .reduce((sum, s) => sum + (s.total || 0), 0);
+        .filter(s => {
+          const ts = parseSafeDate(s.timestamp || s.created_at);
+          return ts >= prevStart && ts <= prevEnd;
+        })
+        .reduce((sum, s) => sum + Number(s.total || 0), 0);
       
+      const dayName = currentDate.toLocaleDateString('es-CL', { weekday: 'short' });
+
       result.push({
         date: currentDateStr,
-        name: format(currentDate, 'EEE', { locale: undefined }),
+        name: dayName.charAt(0).toUpperCase() + dayName.slice(1),
         currentPeriod: Math.round(currentDaySales),
         previousPeriod: Math.round(previousDaySales),
       });
@@ -175,10 +188,9 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
     };
 
     sales.forEach((sale) => {
-      const method = sale.payment_method?.toLowerCase() || 'efectivo';
-      if (method in methods) {
-        methods[method] += sale.total || 0;
-      }
+      const rawMethod = (sale.payment_method || sale.paymentMethod || 'efectivo').toString().toLowerCase();
+      const method = rawMethod in methods ? rawMethod : 'efectivo';
+      methods[method] += Number(sale.total || 0);
     });
 
     return methods;
