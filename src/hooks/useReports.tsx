@@ -16,6 +16,21 @@ interface TopProduct {
   ingresos: number;
 }
 
+export interface SoldProduct {
+  id?: string;
+  sku: string;
+  name: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  totalRevenue: number;
+  cost: number;
+  totalCost: number;
+  profit: number;
+  margin: number;
+  percentageOfSales: number;
+}
+
 interface CategorySales {
   name: string;
   value: number;
@@ -67,6 +82,7 @@ export function parseSafeDate(val: any): number {
 export function useReports(days: number = 7, endDateOverride?: Date) {
   const [salesData, setSalesData] = useState<DailySales[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [allProductsSold, setAllProductsSold] = useState<SoldProduct[]>([]);
   const [categoryData, setCategoryData] = useState<CategorySales[]>([]);
   const [totalSales, setTotalSales] = useState(0);
   const [totalTransactions, setTotalTransactions] = useState(0);
@@ -179,29 +195,108 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       setAverageTicket(totalTx > 0 ? totalSalesAmount / totalTx : 0);
       setTotalProductsSold(totalProducts);
 
-      const productMap = new Map<string, { quantity: number; revenue: number }>();
+      // Leer catálogo de productos desde localStorage para enriquecer SKU, categoría y costo
+      let catalogMap = new Map<string, any>();
+      try {
+        const stored = localStorage.getItem("expoventas_products");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p: any) => {
+              if (p.id) catalogMap.set(p.id, p);
+              if (p.sku) catalogMap.set(p.sku.toLowerCase(), p);
+              if (p.name) catalogMap.set(p.name.toLowerCase(), p);
+            });
+          }
+        }
+      } catch (e) {}
+
+      const productAggregation = new Map<string, {
+        id?: string;
+        sku: string;
+        name: string;
+        category: string;
+        quantity: number;
+        revenue: number;
+        cost: number;
+      }>();
+
       sales.forEach((sale) => {
         if (sale.items && Array.isArray(sale.items)) {
           sale.items.forEach((item: any) => {
-            const name = item.name || "Producto";
-            const existing = productMap.get(name) || { quantity: 0, revenue: 0 };
-            const qty = Number(item.quantity || 0);
+            const rawId = item.id || "";
+            const rawSku = item.sku || "";
+            const rawName = item.name || "Producto sin nombre";
+
+            const fromCatalog = catalogMap.get(rawId) || 
+                                (rawSku ? catalogMap.get(rawSku.toLowerCase()) : null) || 
+                                catalogMap.get(rawName.toLowerCase());
+
+            const sku = rawSku || fromCatalog?.sku || "S/SKU";
+            const name = rawName || fromCatalog?.name || "Producto";
+            const category = item.category || fromCatalog?.category || "General";
+            const cost = Number(item.cost ?? fromCatalog?.cost ?? 0);
             const price = Number(item.price || 0);
+            const qty = Number(item.quantity || 0);
+
+            const aggKey = (sku && sku !== "S/SKU") ? sku.toUpperCase() : (rawId || name.toLowerCase());
+
+            const existing = productAggregation.get(aggKey) || {
+              id: rawId || fromCatalog?.id,
+              sku,
+              name,
+              category,
+              quantity: 0,
+              revenue: 0,
+              cost,
+            };
+
             existing.quantity += qty;
-            existing.revenue += qty * price;
-            productMap.set(name, existing);
+            existing.revenue += (qty * price);
+            if (!existing.cost && cost) existing.cost = cost;
+            if (existing.sku === "S/SKU" && sku && sku !== "S/SKU") existing.sku = sku;
+
+            productAggregation.set(aggKey, existing);
           });
         }
       });
 
-      const topProductsArray: TopProduct[] = Array.from(productMap.entries())
-        .map(([name, data]) => ({
-          name,
-          ventas: data.quantity,
-          ingresos: Math.round(data.revenue)
-        }))
-        .sort((a, b) => b.ingresos - a.ingresos)
-        .slice(0, 10);
+      const allSoldList: SoldProduct[] = Array.from(productAggregation.values())
+        .map((p) => {
+          const unitPrice = p.quantity > 0 ? Math.round(p.revenue / p.quantity) : 0;
+          const totalCost = p.cost * p.quantity;
+          const profit = p.revenue - totalCost;
+          const margin = p.revenue > 0 ? Number(((profit / p.revenue) * 100).toFixed(1)) : 0;
+          const percentageOfSales = totalSalesAmount > 0 
+            ? Number(((p.revenue / totalSalesAmount) * 100).toFixed(1)) 
+            : 0;
+
+          return {
+            id: p.id,
+            sku: p.sku,
+            name: p.name,
+            category: p.category,
+            quantity: p.quantity,
+            unitPrice,
+            totalRevenue: Math.round(p.revenue),
+            cost: p.cost,
+            totalCost,
+            profit,
+            margin,
+            percentageOfSales,
+          };
+        })
+        .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+      setAllProductsSold(allSoldList);
+
+      const topProductsArray: TopProduct[] = allSoldList
+        .slice(0, 10)
+        .map(p => ({
+          name: p.name,
+          ventas: p.quantity,
+          ingresos: p.totalRevenue
+        }));
 
       setTopProducts(topProductsArray);
 
@@ -341,6 +436,7 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
   return {
     salesData,
     topProducts,
+    allProductsSold,
     categoryData,
     totalSales,
     totalTransactions,

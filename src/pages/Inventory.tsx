@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Edit, Trash2, Package, Tag, Save, RefreshCw, X, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { Product } from "@/types/product";
 import { ExcelImport } from "@/components/ExcelImport";
 import { InventoryExportMenu } from "@/components/InventoryExportMenu";
+import { StockSyncDialog } from "@/components/StockSyncDialog";
 import { ProductDialog } from "@/components/ProductDialog";
 import { EditableCell } from "@/components/EditableCell";
 import { getPromotionLabel } from "@/utils/promotions";
 import { useProducts } from "@/hooks/useProducts";
+import { fetchAllSalesCombined, aggregateUnitsSoldByProduct } from "@/utils/stockReconciler";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +41,33 @@ export default function Inventory() {
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingChanges, setPendingChanges] = useState<Map<string, Partial<Omit<Product, "id">>>>(new Map());
+  const [soldUnitsMap, setSoldUnitsMap] = useState<Map<string, number>>(new Map());
   const { products, loading, addProduct, updateProduct, deleteProduct, bulkDelete, bulkUpsert, bulkUpdate, refresh } = useProducts();
+
+  useEffect(() => {
+    loadSoldUnits();
+  }, [products]);
+
+  const loadSoldUnits = async () => {
+    try {
+      const sales = await fetchAllSalesCombined();
+      const { bySku, byId, byName } = aggregateUnitsSoldByProduct(sales);
+      const map = new Map<string, number>();
+      products.forEach((p) => {
+        const skuKey = p.sku ? p.sku.trim().toUpperCase() : "";
+        const nameKey = p.name ? p.name.trim().toLowerCase() : "";
+        const sold = Math.max(
+          skuKey ? (bySku.get(skuKey) || 0) : 0,
+          p.id ? (byId.get(p.id) || 0) : 0,
+          nameKey ? (byName.get(nameKey) || 0) : 0
+        );
+        map.set(p.id, sold);
+      });
+      setSoldUnitsMap(map);
+    } catch (e) {
+      console.error("Error loading sold units for inventory:", e);
+    }
+  };
 
   const filteredInventory = products.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -220,6 +248,11 @@ export default function Inventory() {
                 <span className="font-semibold">{item.stock}</span>
                 {getStockBadge(item.stock)}
               </div>
+              {(soldUnitsMap.get(item.id) || 0) > 0 && (
+                <span className="text-[10px] text-primary block font-medium">
+                  {soldUnitsMap.get(item.id)} vend.
+                </span>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground block">Costo</span>
@@ -357,6 +390,14 @@ export default function Inventory() {
             filteredProducts={filteredInventory}
             selectedProducts={products.filter((p) => selectedIds.has(p.id))}
             searchTerm={searchTerm}
+          />
+
+          <StockSyncDialog
+            products={products}
+            onSyncComplete={async () => {
+              await refresh();
+              await loadSoldUnits();
+            }}
           />
           
           <ProductDialog 
@@ -520,9 +561,16 @@ export default function Inventory() {
                           onSave={(value) => handleCellUpdate(item.id, 'stock', value)}
                         />
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-sm">{item.stock}</span>
-                          {getStockBadge(item.stock)}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-sm">{item.stock}</span>
+                            {getStockBadge(item.stock)}
+                          </div>
+                          {(soldUnitsMap.get(item.id) || 0) > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              {soldUnitsMap.get(item.id)} vend.
+                            </span>
+                          )}
                         </div>
                       )}
                     </TableCell>

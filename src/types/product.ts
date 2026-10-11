@@ -7,6 +7,7 @@ export interface Product {
   price: number;
   cost: number;
   promotion?: Promotion;
+  initialStock?: number;
 }
 
 export interface Promotion {

@@ -629,13 +629,16 @@ export default function POS() {
         exchange_rate_used: exchangeRateUsed,
       } as any);
 
-      // 2. Descontar stock del inventario local (expoventas_products)
+      // 2. Descontar stock del inventario local y remoto (expoventas_products y Supabase)
       const stockUpdates = cart.map(item => {
-        const prod = products.find(p => p.id === item.id);
+        const prod = products.find(p => p.id === item.id || (p.sku && item.sku && p.sku.toLowerCase() === item.sku.toLowerCase()));
+        const targetId = prod?.id || item.id;
+        const targetSku = prod?.sku || item.sku;
         const currentStock = prod ? Number(prod.stock) : Number(item.stock);
         const newStock = Math.max(0, currentStock - item.quantity);
         return {
-          id: item.id,
+          id: targetId,
+          sku: targetSku,
           data: { stock: newStock }
         };
       });

@@ -254,11 +254,13 @@ export function useProducts() {
     }
   };
 
-  const bulkUpdate = async (updates: { id: string; data: Partial<Omit<Product, "id">> }[]) => {
+  const bulkUpdate = async (updates: { id: string; sku?: string; data: Partial<Omit<Product, "id">> }[]) => {
     setProducts(prev => {
       const updateMap = new Map(updates.map(u => [u.id, u.data]));
+      const updateSkuMap = new Map(updates.filter(u => u.sku).map(u => [u.sku!.toLowerCase(), u.data]));
+
       const updated = prev.map(p => {
-        const change = updateMap.get(p.id);
+        const change = updateMap.get(p.id) || (p.sku ? updateSkuMap.get(p.sku.toLowerCase()) : undefined);
         if (!change) return p;
         return { ...p, ...change };
       });
@@ -267,18 +269,24 @@ export function useProducts() {
     });
 
     try {
-      const updatePromises = updates.map(({ id, data }) =>
-        supabase
-          .from("products")
-          .update({
-            ...(data.name && { name: data.name }),
-            ...(data.category && { category: data.category }),
-            ...(data.stock !== undefined && { stock: Number(data.stock) }),
-            ...(data.price !== undefined && { price: Number(data.price) }),
-            ...(data.cost !== undefined && { cost: Number(data.cost) }),
-          })
-          .eq("id", id)
-      );
+      const updatePromises = updates.map(async ({ id, sku, data }) => {
+        const payload: any = {
+          ...(data.name && { name: data.name }),
+          ...(data.category && { category: data.category }),
+          ...(data.stock !== undefined && { stock: Number(data.stock) }),
+          ...(data.price !== undefined && { price: Number(data.price) }),
+          ...(data.cost !== undefined && { cost: Number(data.cost) }),
+        };
+
+        if (id) {
+          const { error } = await supabase.from("products").update(payload).eq("id", id);
+          if (!error) return;
+        }
+
+        if (sku) {
+          await supabase.from("products").update(payload).eq("sku", sku);
+        }
+      });
       await Promise.all(updatePromises);
     } catch (e) {
       console.error("Error en bulkUpdate Supabase:", e);

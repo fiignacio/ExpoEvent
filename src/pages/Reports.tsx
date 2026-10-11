@@ -14,12 +14,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Area } from "recharts";
-import { TrendingUp, TrendingDown, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users, Download, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Package, Calendar, Eye, FileText, RefreshCw, Users, Download, ArrowUpRight, ArrowDownRight, ChevronDown, FileSpreadsheet } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useCashSessions } from "@/hooks/useCashSessions";
 import { useReports } from "@/hooks/useReports";
 import { useReportsComparison } from "@/hooks/useReportsComparison";
 import { CashSessionDetail } from "@/components/CashSessionDetail";
+import { SoldProductsReportTable } from "@/components/SoldProductsReportTable";
+import { exportSoldProductsToExcel, exportSoldProductsToPdf } from "@/utils/reportsProductExport";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +49,7 @@ export default function Reports() {
   const { 
     salesData, 
     topProducts, 
+    allProductsSold,
     categoryData, 
     totalSales, 
     totalTransactions, 
@@ -320,6 +331,26 @@ export default function Reports() {
     }
   };
 
+  const handleExportSoldProductsExcel = () => {
+    const { startDate, endDate } = getDateRange();
+    exportSoldProductsToExcel(allProductsSold, {
+      periodLabel: getPeriodLabel(),
+      dateRangeText: `${format(startDate, 'dd/MM/yyyy')} - ${format(endDate, 'dd/MM/yyyy')}`,
+      startDate,
+      endDate,
+    });
+  };
+
+  const handleExportSoldProductsPdf = () => {
+    const { startDate, endDate } = getDateRange();
+    exportSoldProductsToPdf(allProductsSold, {
+      periodLabel: getPeriodLabel(),
+      dateRangeText: `${format(startDate, 'dd/MM/yyyy')} - ${format(endDate, 'dd/MM/yyyy')}`,
+      startDate,
+      endDate,
+    });
+  };
+
   const exportToExcel = async () => {
     try {
       const { startDate, endDate } = getDateRange();
@@ -400,9 +431,80 @@ export default function Reports() {
         const storedProds = localStorage.getItem("expoventas_products");
         if (storedProds) localProds = JSON.parse(storedProds);
       } catch {}
-      const productsMap = new Map(localProds.map((p: any) => [p.id, { name: p.name, sku: p.sku }]));
+      const productsMap = new Map(localProds.map((p: any) => [p.id, p]));
 
-      // Detailed transactions sheet - one row per product sold
+      // 1. Hoja Principal: Reporte Consolidado por Producto Vendido (Unidades, Precio y Total)
+      const productsConsolidatedMap = new Map<string, {
+        sku: string;
+        name: string;
+        category: string;
+        quantity: number;
+        revenue: number;
+        cost: number;
+      }>();
+
+      detailedSales?.forEach(sale => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        items.forEach((item: any) => {
+          const prod = productsMap.get(item.id);
+          const sku = item.sku || prod?.sku || "S/SKU";
+          const name = item.name || prod?.name || "Producto";
+          const category = item.category || prod?.category || "General";
+          const cost = Number(item.cost ?? prod?.cost ?? 0);
+          const price = Number(item.price || 0);
+          const qty = Number(item.quantity || 1);
+
+          const key = sku !== "S/SKU" ? sku.toUpperCase() : (item.id || name.toLowerCase());
+          const cur = productsConsolidatedMap.get(key) || {
+            sku,
+            name,
+            category,
+            quantity: 0,
+            revenue: 0,
+            cost,
+          };
+          cur.quantity += qty;
+          cur.revenue += (qty * price);
+          if (!cur.cost && cost) cur.cost = cost;
+          productsConsolidatedMap.set(key, cur);
+        });
+      });
+
+      const totalRevenueFromProducts = Array.from(productsConsolidatedMap.values()).reduce((sum, p) => sum + p.revenue, 0);
+
+      const productsSoldSheetData = Array.from(productsConsolidatedMap.values())
+        .sort((a, b) => b.revenue - a.revenue)
+        .map((p, idx) => {
+          const unitPrice = p.quantity > 0 ? Math.round(p.revenue / p.quantity) : 0;
+          const totalCost = p.cost * p.quantity;
+          const profit = p.revenue - totalCost;
+          const margin = p.revenue > 0 ? Number(((profit / p.revenue) * 100).toFixed(1)) : 0;
+          const pct = totalRevenueFromProducts > 0 ? Number(((p.revenue / totalRevenueFromProducts) * 100).toFixed(1)) : 0;
+
+          return {
+            "#": idx + 1,
+            "SKU": p.sku,
+            "Nombre del Producto": p.name,
+            "Categoría": p.category,
+            "Cantidad Vendida (Unid.)": p.quantity,
+            "Precio Unitario ($)": unitPrice,
+            "Total Ventas ($)": p.revenue,
+            "Costo Unitario ($)": p.cost,
+            "Total Costo ($)": totalCost,
+            "Ganancia Neta ($)": profit,
+            "Margen (%)": margin,
+            "% del Total": `${pct}%`,
+          };
+        });
+
+      const wsProductsSold = XLSX.utils.json_to_sheet(productsSoldSheetData);
+      const prodCols = Object.keys(productsSoldSheetData[0] || {}).map(k => ({
+        wch: Math.min(Math.max(k.length + 2, 10), 40)
+      }));
+      wsProductsSold["!cols"] = prodCols;
+      XLSX.utils.book_append_sheet(wb, wsProductsSold, 'Ventas por Producto');
+
+      // 2. Detailed transactions sheet - one row per product sold per transaction
       const transactionsData: any[] = [];
       detailedSales?.forEach(sale => {
         const items = Array.isArray(sale.items) ? sale.items : [];
@@ -543,15 +645,67 @@ export default function Reports() {
             <span className="hidden sm:inline ml-2">Actualizar</span>
           </Button>
           
-          <Button 
-            onClick={exportToExcel}
-            disabled={reportsLoading}
-            size="sm"
-            className="h-9 sm:h-10"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline ml-2">Exportar</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                disabled={reportsLoading}
+                size="sm"
+                className="h-9 sm:h-10 gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Exportar</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 p-1.5 shadow-xl">
+              <DropdownMenuLabel className="px-2 py-1.5 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground block">Generar Reporte ({getPeriodLabel()})</span>
+                <span className="text-[11px] font-normal">Descarga en Excel (.xlsx) o documento PDF</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={handleExportSoldProductsExcel}
+                className="cursor-pointer text-xs justify-between py-2 text-emerald-600 dark:text-emerald-400 font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Ventas por Producto (Excel)</span>
+                </div>
+                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded font-mono">
+                  {allProductsSold.length} prods
+                </span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={handleExportSoldProductsPdf}
+                className="cursor-pointer text-xs justify-between py-2 text-rose-600 dark:text-rose-400 font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  <span>Ventas por Producto (PDF)</span>
+                </div>
+                <span className="text-[10px] bg-rose-50 dark:bg-rose-950 px-1.5 py-0.5 rounded font-mono">
+                  PDF A4
+                </span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={exportToExcel}
+                className="cursor-pointer text-xs justify-between py-2"
+              >
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4 text-muted-foreground" />
+                  <span>Reporte General Completo (Excel)</span>
+                </div>
+                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono text-muted-foreground">
+                  Multi-hoja
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1003,35 +1157,26 @@ export default function Reports() {
           )}
         </TabsContent>
 
-        <TabsContent value="products">
-          {reportsLoading ? (
+        <TabsContent value="products" className="space-y-4">
+          <SoldProductsReportTable
+            products={allProductsSold}
+            loading={reportsLoading}
+            periodLabel={getPeriodLabel()}
+            dateRangeText={`${format(getDateRange().startDate, 'dd/MM/yyyy')} - ${format(getDateRange().endDate, 'dd/MM/yyyy')}`}
+          />
+
+          {topProducts.length > 0 && (
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8 text-muted-foreground">
-                  Cargando productos...
-                </div>
-              </CardContent>
-            </Card>
-          ) : topProducts.length === 0 ? (
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8 text-muted-foreground">
-                  No hay datos de productos disponibles
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Productos Más Vendidos</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">Top 10 Productos con Mayor Recaudación</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={topProducts} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={150} />
-                    <Tooltip />
+                    <YAxis dataKey="name" type="category" width={140} />
+                    <Tooltip formatter={(val: number) => `$${val.toLocaleString('es-CL')}`} />
                     <Legend />
                     <Bar dataKey="ventas" fill="#2563eb" name="Unidades Vendidas" />
                     <Bar dataKey="ingresos" fill="#10b981" name="Ingresos ($)" />

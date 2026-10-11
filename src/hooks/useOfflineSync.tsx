@@ -67,6 +67,30 @@ export function useOfflineSync() {
                   synced: true
                 };
                 savePendingSales([formatted, ...current]);
+
+                // Descontar stock localmente para mantener sincronizado en tiempo real
+                if (Array.isArray(formatted.items) && formatted.items.length > 0) {
+                  try {
+                    const prodStored = localStorage.getItem("expoventas_products");
+                    if (prodStored) {
+                      const localProducts: any[] = JSON.parse(prodStored);
+                      const updatedProds = localProducts.map(p => {
+                        const soldItem = formatted.items.find((item: any) => 
+                          item.id === p.id || (item.sku && p.sku && item.sku.toLowerCase() === p.sku.toLowerCase())
+                        );
+                        if (soldItem) {
+                          const currentStock = Number(p.stock || 0);
+                          const qty = Number(soldItem.quantity || 1);
+                          return { ...p, stock: Math.max(0, currentStock - qty) };
+                        }
+                        return p;
+                      });
+                      localStorage.setItem("expoventas_products", JSON.stringify(updatedProds));
+                    }
+                  } catch (e) {
+                    console.error("Error decrementing stock on realtime sale:", e);
+                  }
+                }
               }
             } catch (e) {
               console.error("Error processing realtime sale:", e);
