@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { startOfDay, endOfDay, subDays, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { getAllCombinedSales, parseSafeDate } from "@/hooks/useReports";
 
 interface PeriodComparison {
@@ -49,14 +50,15 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
     try {
       setLoading(true);
       const baseEnd = endDateOverride ?? new Date();
+      const numDays = Math.max(1, days);
       
       // Current period
       const currentEndDate = endOfDay(baseEnd);
-      const currentStartDate = startOfDay(subDays(baseEnd, days - 1));
+      const currentStartDate = startOfDay(subDays(baseEnd, numDays - 1));
       
-      // Previous period (same duration, before current period)
+      // Previous period (same duration, immediately preceding current period)
       const previousEndDate = endOfDay(subDays(currentStartDate, 1));
-      const previousStartDate = startOfDay(subDays(previousEndDate, days - 1));
+      const previousStartDate = startOfDay(subDays(previousEndDate, numDays - 1));
 
       const currentStartTime = currentStartDate.getTime();
       const currentEndTime = currentEndDate.getTime();
@@ -76,7 +78,7 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
         return ts >= previousStartTime && ts <= previousEndTime;
       });
 
-      // Calculate current period metrics
+      // Calculate period metrics
       const currentMetrics = calculateMetrics(currentSales);
       const previousMetrics = calculateMetrics(previousSales);
 
@@ -95,7 +97,7 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
       });
 
       // Calculate daily comparison
-      const dailyData = calculateDailyComparison(currentSales, previousSales, days);
+      const dailyData = calculateDailyComparison(currentSales, previousSales, numDays);
       setDailyComparison(dailyData);
 
       // Calculate payment methods comparison
@@ -139,6 +141,48 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
   const calculateDailyComparison = (currentSales: any[], previousSales: any[], daysCount: number): DailyComparisonData[] => {
     const result: DailyComparisonData[] = [];
     const baseEnd = endDateOverride ?? new Date();
+
+    if (daysCount === 1) {
+      // Comparativa directa de 1 día (ej. Hoy vs Ayer)
+      const previousDay = subDays(baseEnd, 1);
+      const prevDayStart = startOfDay(previousDay).getTime();
+      const prevDayEnd = endOfDay(previousDay).getTime();
+      const curDayStart = startOfDay(baseEnd).getTime();
+      const curDayEnd = endOfDay(baseEnd).getTime();
+
+      const prevTotal = previousSales
+        .filter(s => {
+          const ts = parseSafeDate(s.timestamp || s.created_at);
+          return ts >= prevDayStart && ts <= prevDayEnd;
+        })
+        .reduce((sum, s) => sum + Number(s.total || 0), 0);
+
+      const curTotal = currentSales
+        .filter(s => {
+          const ts = parseSafeDate(s.timestamp || s.created_at);
+          return ts >= curDayStart && ts <= curDayEnd;
+        })
+        .reduce((sum, s) => sum + Number(s.total || 0), 0);
+
+      const prevLabel = `Ayer (${format(previousDay, 'dd/MM')})`;
+      const curLabel = `Día Seleccionado (${format(baseEnd, 'dd/MM')})`;
+
+      result.push({
+        date: format(previousDay, 'yyyy-MM-dd'),
+        name: prevLabel,
+        currentPeriod: 0,
+        previousPeriod: Math.round(prevTotal),
+      });
+
+      result.push({
+        date: format(baseEnd, 'yyyy-MM-dd'),
+        name: curLabel,
+        currentPeriod: Math.round(curTotal),
+        previousPeriod: 0,
+      });
+
+      return result;
+    }
     
     for (let i = daysCount - 1; i >= 0; i--) {
       const currentDate = subDays(baseEnd, i);
@@ -165,11 +209,14 @@ export function useReportsComparison(days: number = 7, endDateOverride?: Date) {
         })
         .reduce((sum, s) => sum + Number(s.total || 0), 0);
       
-      const dayName = currentDate.toLocaleDateString('es-CL', { weekday: 'short' });
+      const dayLabel = daysCount <= 14 
+        ? format(currentDate, 'EEE dd/MM', { locale: es })
+        : format(currentDate, 'dd/MM', { locale: es });
+      const capitalizedLabel = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
 
       result.push({
         date: currentDateStr,
-        name: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+        name: capitalizedLabel,
         currentPeriod: Math.round(currentDaySales),
         previousPeriod: Math.round(previousDaySales),
       });

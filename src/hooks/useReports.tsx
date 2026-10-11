@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { startOfDay, endOfDay, subDays } from "date-fns";
+import { startOfDay, endOfDay, subDays, format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface DailySales {
   date: string;
@@ -166,8 +167,9 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       let totalProducts = 0;
 
       sales.forEach((sale) => {
-        const dateObj = new Date(sale.timestamp || sale.created_at || Date.now());
-        const dateKey = dateObj.toLocaleDateString('es-CL');
+        const ts = sale.timestamp || parseSafeDate(sale.created_at) || Date.now();
+        const dateObj = new Date(ts);
+        const dateKey = format(dateObj, 'yyyy-MM-dd');
         const dayData = salesByDay.get(dateKey) || { total: 0, count: 0 };
         const saleTotal = Number(sale.total || 0);
         dayData.total += saleTotal;
@@ -183,15 +185,19 @@ export function useReports(days: number = 7, endDateOverride?: Date) {
       });
 
       const dailySalesArray: DailySales[] = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const date = subDays(endDateOverride ?? new Date(), i);
-        const dateKey = date.toLocaleDateString('es-CL');
-        const dayName = date.toLocaleDateString('es-CL', { weekday: 'short' });
+      const numDays = Math.max(1, days);
+      for (let i = numDays - 1; i >= 0; i--) {
+        const date = subDays(baseEnd, i);
+        const dateKey = format(date, 'yyyy-MM-dd');
+        const dayLabel = numDays <= 14 
+          ? format(date, "EEE dd/MM", { locale: es })
+          : format(date, "dd/MM", { locale: es });
+        const capitalizedLabel = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
         const dayData = salesByDay.get(dateKey) || { total: 0, count: 0 };
         
         dailySalesArray.push({
           date: dateKey,
-          name: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+          name: capitalizedLabel,
           ventas: Math.round(dayData.total),
           transacciones: dayData.count
         });

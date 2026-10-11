@@ -30,12 +30,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, differenceInCalendarDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, differenceInCalendarDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type PeriodType = "7days" | "14days" | "30days" | "thisMonth" | "thisWeek" | "specificMonth" | "custom";
+type PeriodType = "today" | "yesterday" | "thisWeek" | "7days" | "14days" | "thisMonth" | "30days" | "specificMonth" | "custom";
 
 export default function Reports() {
   const { sessions, loading: sessionsLoading, fetchSessions } = useCashSessions();
@@ -45,6 +45,7 @@ export default function Reports() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [activeDays, setActiveDays] = useState(7);
   const [endDateOverride, setEndDateOverride] = useState<Date | undefined>(undefined);
+  const [zReportDate, setZReportDate] = useState<Date>(new Date());
   
   const { 
     salesData, 
@@ -78,7 +79,7 @@ export default function Reports() {
   const [syncingSuppliers, setSyncingSuppliers] = useState(false);
 
   useEffect(() => {
-    loadTodayZReport();
+    loadZReportForDate(new Date());
     fetchSupplierSales();
   }, []);
 
@@ -87,6 +88,14 @@ export default function Reports() {
     const today = new Date();
     let newEnd: Date | undefined = undefined;
     switch (periodType) {
+      case "today":
+        setActiveDays(1);
+        newEnd = today;
+        break;
+      case "yesterday":
+        setActiveDays(1);
+        newEnd = subDays(today, 1);
+        break;
       case "7days":
         setActiveDays(7);
         break;
@@ -138,6 +147,16 @@ export default function Reports() {
     let endDate: Date = today;
 
     switch (periodType) {
+      case "today":
+        startDate = today;
+        endDate = today;
+        break;
+      case "yesterday": {
+        const yst = subDays(today, 1);
+        startDate = yst;
+        endDate = yst;
+        break;
+      }
       case "thisMonth":
         startDate = startOfMonth(today);
         endDate = today;
@@ -258,9 +277,11 @@ export default function Reports() {
     }
   };
 
-  const loadTodayZReport = async () => {
+  const loadZReportForDate = async (targetDate?: Date) => {
+    const d = targetDate || zReportDate || new Date();
     setLoadingZReport(true);
-    const report = await fetchZReport();
+    setZReportDate(d);
+    const report = await fetchZReport(d);
     setZReportData(report);
     setLoadingZReport(false);
   };
@@ -270,7 +291,7 @@ export default function Reports() {
     await Promise.all([
       refreshReports(),
       refreshComparison(),
-      loadTodayZReport(),
+      loadZReportForDate(zReportDate),
       fetchSessions(),
       fetchSupplierSales()
     ]);
@@ -316,6 +337,8 @@ export default function Reports() {
 
   const getPeriodLabel = () => {
     switch (periodType) {
+      case "today": return `Hoy (${format(new Date(), "dd/MM/yyyy")})`;
+      case "yesterday": return `Ayer (${format(subDays(new Date(), 1), "dd/MM/yyyy")})`;
       case "7days": return "Últimos 7 días";
       case "14days": return "Últimos 14 días";
       case "30days": return "Últimos 30 días";
@@ -598,6 +621,8 @@ export default function Reports() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="today">Hoy</SelectItem>
+              <SelectItem value="yesterday">Ayer</SelectItem>
               <SelectItem value="thisWeek">Esta semana</SelectItem>
               <SelectItem value="7days">Últimos 7 días</SelectItem>
               <SelectItem value="14days">Últimos 14 días</SelectItem>
@@ -824,6 +849,43 @@ export default function Reports() {
         </TabsList>
 
         <TabsContent value="zreport" className="space-y-4">
+          {/* Selector de fecha interactivo para Cierre Z */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-muted/40 rounded-xl border">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-foreground">Fecha del Cierre:</span>
+              <Button
+                variant={isSameDay(zReportDate, new Date()) ? "default" : "outline"}
+                size="sm"
+                onClick={() => loadZReportForDate(new Date())}
+                className="h-8 text-xs px-3"
+              >
+                Hoy ({format(new Date(), "dd/MM")})
+              </Button>
+              <Button
+                variant={isSameDay(zReportDate, subDays(new Date(), 1)) ? "default" : "outline"}
+                size="sm"
+                onClick={() => loadZReportForDate(subDays(new Date(), 1))}
+                className="h-8 text-xs px-3"
+              >
+                Ayer ({format(subDays(new Date(), 1), "dd/MM")})
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">Otra fecha:</span>
+              <Input
+                type="date"
+                value={format(zReportDate, "yyyy-MM-dd")}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [y, m, d] = e.target.value.split('-').map(Number);
+                    loadZReportForDate(new Date(y, m - 1, d));
+                  }
+                }}
+                className="w-36 h-8 text-xs"
+              />
+            </div>
+          </div>
+
           {loadingZReport ? (
             <Card>
               <CardContent className="p-4 sm:p-6">
@@ -838,7 +900,7 @@ export default function Reports() {
                 <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="truncate">Reporte de Cierre Z - {format(new Date(), "PPP", { locale: es })}</span>
+                    <span className="truncate">Reporte de Cierre Z - {format(zReportDate, "PPP", { locale: es })}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
@@ -1128,7 +1190,7 @@ export default function Reports() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(val: number) => [`$${Number(val || 0).toLocaleString('es-CL')}`, "Ventas"]} />
                       <Legend />
                       <Bar dataKey="ventas" fill="#10b981" name="Ventas ($)" />
                     </BarChart>
@@ -1146,7 +1208,7 @@ export default function Reports() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(val: number) => [`${val} transacciones`, "Transacciones"]} />
                       <Legend />
                       <Line type="monotone" dataKey="transacciones" stroke="#2563eb" strokeWidth={2} name="Transacciones" />
                     </LineChart>
